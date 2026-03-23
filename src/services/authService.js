@@ -23,13 +23,22 @@ const register = async ({ name, email, phone, password, role }) => {
 
 const login = async ({ email, password, deviceInfo }) => {
   const user = await userModel.findByEmail(email);
+
   if (!user || !user.is_active) {
-    const err = new Error('Invalid credentials'); err.statusCode = 401; throw err;
-  }
-  if (!bcrypt.compareSync(password, user.password_hash)) {
-    const err = new Error('Invalid credentials'); err.statusCode = 401; throw err;
+    const err = new Error('Invalid Username or Password'); err.statusCode = 401; throw err;
   }
 
+  const storedHash = user.password_hash ?? user.password;
+  try {
+    if (!storedHash || !bcrypt.compareSync(password, storedHash)) {
+      const err = new Error('Invalid credentials'); 
+      err.statusCode = 401; throw err;
+    }
+  } catch (err) {
+    if (err.statusCode === 401) throw err;
+    const e = new Error('Invalid credentials'); e.statusCode = 401; throw e;
+  }
+  
   const roles   = await userModel.getRoles(user.id);
   const roleArr = roles.map((r) => r.name);
 

@@ -28,4 +28,10 @@ const otpVerify = Joi.object({
   purpose:  Joi.string().valid('login','register','forgot_password').required(),
 }).or('email', 'phone');
 
-module.exports = { register, login, otpSend, otpVerify };
+const resetPassword = Joi.object({
+  reset_token:  Joi.string().required(),
+  new_password: Joi.string().min(8).required()
+                  .messages({ 'string.min': 'Password must be at least 8 characters' }),
+});
+
+module.exports = { register, login, otpSend, otpVerify , resetPassword};

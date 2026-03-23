@@ -50,4 +50,7 @@ const updateProfile = (userId, { name, phone }) =>
     [name, phone, userId]
   );
 
-module.exports = { findByEmail, findById, create, comparePassword, getRoles, addRole, updateProfile };
+ const findByPhone = (phone) =>
+    db.findOne('SELECT * FROM users WHERE phone = ?', [phone]);
+
+module.exports = { findByEmail, findById, create, comparePassword, getRoles, addRole, updateProfile , findByPhone };

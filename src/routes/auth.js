@@ -9,6 +9,7 @@ router.post('/register',     authLimiter, validate(v.register),   ctrl.register)
 router.post('/login',        authLimiter, validate(v.login),      ctrl.login);
 router.post('/otp/send',     authLimiter, validate(v.otpSend),    ctrl.sendOtp);
 router.post('/otp/verify',   authLimiter, validate(v.otpVerify),  ctrl.verifyOtp);
+router.post('/reset-password', validate(v.resetPassword), ctrl.resetPassword);
 router.post('/logout',       auth,                                 ctrl.logout);
 router.get('/me',            auth,                                 ctrl.getMe);
 
