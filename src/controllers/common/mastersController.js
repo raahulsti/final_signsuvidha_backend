@@ -3,6 +3,9 @@ const productTypeModel = require('../../models/productTypeModel');
 const materialModel   = require('../../models/materialModel');
 const elementModel    = require('../../models/elementModel');
 const colorModel      = require('../../models/colorModel');
+const shadowColorModel = require('../../models/shadowColorModel');
+const borderColorModel = require('../../models/borderColorModel');
+const baseColorModel   = require('../../models/baseColorModel');
 const fontModel       = require('../../models/fontModel');
 const fontSizeModel   = require('../../models/fontSizeModel');
 const letterStyleModel= require('../../models/letterStyleModel');
@@ -30,6 +33,9 @@ exports.getElements = async (req, res, next) => {
 };
 
 exports.getColors       = async (req, res, next) => { try { return success(res, await colorModel.getAll(req.query.product_type_id)); } catch(e){next(e);} };
+exports.getShadowColors = async (req, res, next) => { try { return success(res, await shadowColorModel.getAll(req.query.product_type_id)); } catch(e){next(e);} };
+exports.getBorderColors = async (req, res, next) => { try { return success(res, await borderColorModel.getAll(req.query.product_type_id)); } catch(e){next(e);} };
+exports.getBaseColors   = async (req, res, next) => { try { return success(res, await baseColorModel.getAll(req.query.product_type_id)); } catch(e){next(e);} };
 exports.getFonts        = async (req, res, next) => { try { return success(res, await fontModel.getAll(req.query.product_type_id)); } catch(e){next(e);} };
 exports.getLetterStyles = async (req, res, next) => { try { return success(res, await letterStyleModel.getAll(req.query.product_type_id)); } catch(e){next(e);} };
 

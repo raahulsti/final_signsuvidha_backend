@@ -3,14 +3,22 @@ const db = require('../config/db');
 const getAll = (productTypeId) => {
   if (productTypeId) {
     return db.execute(
-      `SELECT c.* FROM colors c
+      `SELECT c.*, GROUP_CONCAT(DISTINCT ptc.product_type_id) AS product_type_ids_csv
+       FROM colors c
        INNER JOIN product_type_colors ptc ON ptc.color_id = c.id
        WHERE ptc.product_type_id = ? AND c.is_active = 1
+       GROUP BY c.id
        ORDER BY c.id ASC`,
       [productTypeId]
     );
   }
-  return db.execute('SELECT * FROM colors ORDER BY id ASC');
+  return db.execute(
+    `SELECT c.*, GROUP_CONCAT(DISTINCT ptc.product_type_id) AS product_type_ids_csv
+     FROM colors c
+     LEFT JOIN product_type_colors ptc ON ptc.color_id = c.id
+     GROUP BY c.id
+     ORDER BY c.id ASC`
+  );
 };
 
 const getById = (id) => db.findOne('SELECT * FROM colors WHERE id = ?', [id]);
