@@ -3,10 +3,18 @@ const db = require('../config/db');
 const getAll = ({ productTypeId, imageType, isActive, offset, limit }) => {
   const conds = [];
   const vals = [];
-  if (productTypeId !== undefined) { conds.push('ia.product_type_id = ?'); vals.push(productTypeId); }
-  if (imageType !== undefined) { conds.push('ia.image_type = ?'); vals.push(imageType); }
+  if (productTypeId !== undefined && productTypeId !== null && productTypeId !== '') {
+    conds.push('ia.product_type_id = ?');
+    vals.push(Number(productTypeId));
+  }
+  if (imageType !== undefined && imageType !== null && String(imageType).trim() !== '') {
+    conds.push('ia.image_type = ?');
+    vals.push(String(imageType).trim());
+  }
   if (isActive !== undefined) { conds.push('ia.is_active = ?'); vals.push(isActive); }
   const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
+  const safeLimit = Number.isFinite(Number(limit)) && Number(limit) > 0 ? Number(limit) : 20;
+  const safeOffset = Number.isFinite(Number(offset)) && Number(offset) >= 0 ? Number(offset) : 0;
 
   const sql = `
     SELECT ia.*, pt.name AS product_type_name, pt.slug AS product_type_slug
@@ -17,7 +25,7 @@ const getAll = ({ productTypeId, imageType, isActive, offset, limit }) => {
     LIMIT ? OFFSET ?
   `;
   const countSql = `SELECT COUNT(*) AS total FROM image_assets ia ${where}`;
-  return db.paginate(sql, countSql, [...vals, limit, offset], vals);
+  return db.paginate(sql, countSql, [...vals, safeLimit, safeOffset], vals);
 };
 
 const getById = (id) =>

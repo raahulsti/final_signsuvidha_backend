@@ -8,8 +8,8 @@ exports.getAll = async (req, res, next) => {
     const { product_type_id, image_type, is_active, page = 1, limit = 20 } = req.query;
     const { offset, limit: lim } = getPagination(page, limit);
     const { rows, total } = await imageAssetModel.getAll({
-      productTypeId: product_type_id,
-      imageType: image_type,
+      productTypeId: product_type_id ? Number(product_type_id) : undefined,
+      imageType: image_type ? String(image_type).trim() : undefined,
       isActive: is_active !== undefined ? is_active === 'true' : undefined,
       offset,
       limit: lim,

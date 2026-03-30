@@ -25,10 +25,16 @@ const testConnection = async () => {
   conn.release();
 };
 
+// ── Normalize params for mysql2 prepared statements ──────────
+// mysql2 does not allow `undefined` in bound params.
+const normalizeParams = (params = []) =>
+  (Array.isArray(params) ? params : [params]).map((v) => (v === undefined ? null : v));
+
 // ── Helper: execute query with logging ───────────────────────
 const execute = async (sql, params = []) => {
   try {
-    const [rows] = await pool.execute(sql, params);
+    const safeParams = normalizeParams(params);
+    const [rows] = await pool.execute(sql, safeParams);
     return rows;
   } catch (err) {
     logger.error(`DB Error: ${err.message}\nSQL: ${sql}\nParams: ${JSON.stringify(params)}`);
@@ -39,7 +45,8 @@ const execute = async (sql, params = []) => {
 // ── Helper: run query (for IN clauses, dynamic queries) ──────
 const query = async (sql, params = []) => {
   try {
-    const [rows] = await pool.query(sql, params);
+    const safeParams = normalizeParams(params);
+    const [rows] = await pool.query(sql, safeParams);
     return rows;
   } catch (err) {
     logger.error(`DB Error: ${err.message}\nSQL: ${sql}`);
