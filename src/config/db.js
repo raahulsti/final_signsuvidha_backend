@@ -26,17 +26,29 @@ const testConnection = async () => {
 };
 
 // ── Normalize params for mysql2 prepared statements ──────────
-// mysql2 does not allow `undefined` in bound params.
+// mysql2 does not allow undefined values in bound params.
+const normalizeValue = (value) => {
+  if (value === undefined) return null;
+  if (typeof value === 'number' && Number.isNaN(value)) return null;
+  if (Array.isArray(value)) return value.map(normalizeValue);
+  return value;
+};
 const normalizeParams = (params = []) =>
-  (Array.isArray(params) ? params : [params]).map((v) => (v === undefined ? null : v));
+  (Array.isArray(params) ? params : [params]).map(normalizeValue);
 
 // ── Helper: execute query with logging ───────────────────────
 const execute = async (sql, params = []) => {
+  const safeParams = normalizeParams(params);
   try {
-    const safeParams = normalizeParams(params);
     const [rows] = await pool.execute(sql, safeParams);
     return rows;
   } catch (err) {
+    // Production-safe fallback for sporadic mysqld_stmt_execute arg mismatches.
+    if (err?.message?.includes('Incorrect arguments to mysqld_stmt_execute')) {
+      logger.warn(`DB execute fallback to query for SQL: ${sql}`);
+      const [rows] = await pool.query(sql, safeParams);
+      return rows;
+    }
     logger.error(`DB Error: ${err.message}\nSQL: ${sql}\nParams: ${JSON.stringify(params)}`);
     throw err;
   }
