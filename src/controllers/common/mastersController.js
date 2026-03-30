@@ -3,6 +3,7 @@ const productTypeModel = require('../../models/productTypeModel');
 const materialModel   = require('../../models/materialModel');
 const elementModel    = require('../../models/elementModel');
 const colorModel      = require('../../models/colorModel');
+const imageAssetModel = require('../../models/imageAssetModel');
 const shadowColorModel = require('../../models/shadowColorModel');
 const borderColorModel = require('../../models/borderColorModel');
 const baseColorModel   = require('../../models/baseColorModel');
@@ -33,6 +34,19 @@ exports.getElements = async (req, res, next) => {
 };
 
 exports.getColors       = async (req, res, next) => { try { return success(res, await colorModel.getAll(req.query.product_type_id)); } catch(e){next(e);} };
+exports.getImages       = async (req, res, next) => {
+  try {
+    const { product_type_id, image_type } = req.query;
+    const { rows } = await imageAssetModel.getAll({
+      productTypeId: product_type_id,
+      imageType: image_type,
+      isActive: true,
+      offset: 0,
+      limit: 1000,
+    });
+    return success(res, rows);
+  } catch(e){next(e);}
+};
 exports.getShadowColors = async (req, res, next) => { try { return success(res, await shadowColorModel.getAll(req.query.product_type_id)); } catch(e){next(e);} };
 exports.getBorderColors = async (req, res, next) => { try { return success(res, await borderColorModel.getAll(req.query.product_type_id)); } catch(e){next(e);} };
 exports.getBaseColors   = async (req, res, next) => { try { return success(res, await baseColorModel.getAll(req.query.product_type_id)); } catch(e){next(e);} };

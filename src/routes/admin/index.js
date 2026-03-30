@@ -8,6 +8,7 @@ router.use('/dashboard',        require('./dashboard'));
 router.use('/product-types',    require('./productTypes'));
 router.use('/materials',        require('./materials'));
 router.use('/elements',         require('./elements'));
+router.use('/image-assets',     require('./imageAssets'));
 router.use('/colors',           require('./colors'));
 router.use('/shadow-colors',    require('./shadowColors'));
 router.use('/border-colors',    require('./borderColors'));

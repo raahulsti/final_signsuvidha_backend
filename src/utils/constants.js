@@ -36,6 +36,7 @@ module.exports = {
     MATERIALS:       'materials',
     ELEMENTS:        'elements',
     FONTS:           'fonts',
+    IMAGE_ASSETS:    'image-assets',
     LISTED_PRODUCTS: 'listed-products',
     USER_UPLOADS:    'user-uploads',
     VENDOR_LOGOS:    'vendor-logos',
