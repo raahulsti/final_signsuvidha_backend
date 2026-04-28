@@ -6,8 +6,11 @@ const Joi      = require('joi');
 const statusSchema = Joi.object({
   status: Joi.string().valid('confirmed','processing','shipped').required(),
 });
+const emailInvoiceSchema = Joi.object({ email: Joi.string().email().optional().allow(null, '') });
 
 router.get('/',              ctrl.getOrders);
+router.get('/:id/invoice/download', ctrl.downloadInvoice);
+router.post('/:id/invoice/email', validate(emailInvoiceSchema), ctrl.emailInvoice);
 router.get('/:id',           ctrl.getOne);
 router.put('/:id/status',    validate(statusSchema), ctrl.updateStatus);
 

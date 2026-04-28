@@ -12,9 +12,13 @@ const colorPrice = Joi.object({
   price_extra: Joi.number().min(0).required(),
 });
 
-const letterStylePrice = Joi.object({
-  price_multiplier: Joi.number().min(0.1).max(10).optional(),
-  price_extra:      Joi.number().min(0).optional(),
+const fontPrice = Joi.object({
+  product_type_id: Joi.number().integer().positive().required(),
+  price_extra: Joi.number().min(0).required(),
 });
 
-module.exports = { materialPrice, elementPrice, colorPrice, letterStylePrice };
+const illuminationPrice = Joi.object({
+  price_per_sqft: Joi.number().min(0).required(),
+});
+
+module.exports = { materialPrice, elementPrice, colorPrice, fontPrice, illuminationPrice };

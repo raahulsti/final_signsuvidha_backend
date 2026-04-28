@@ -1,7 +1,30 @@
 const cartModel    = require('../../models/cartModel');
 const vendorModel  = require('../../models/vendorModel');
+const illuminationOptionModel = require('../../models/illuminationOptionModel');
 const { getVendorComparison } = require('../../services/pricingService');
-const { success, created, notFound } = require('../../utils/response');
+const { success, created, notFound, error } = require('../../utils/response');
+
+const sanitizeOptionalImageFields = (body = {}) => {
+  ['uploaded_image_url', 'preview_image_url'].forEach((key) => {
+    if (body[key] === '') delete body[key];
+  });
+};
+
+const validateIlluminationOptionForProductType = async (illuminationOptionId, productTypeId) => {
+  if (!illuminationOptionId) return null;
+  const option = await illuminationOptionModel.getById(illuminationOptionId);
+  if (!option || !option.is_active) {
+    const e = new Error('Selected lit/non-lit option not found');
+    e.statusCode = 400;
+    throw e;
+  }
+  if (String(option.product_type_id) !== String(productTypeId)) {
+    const e = new Error('Selected lit/non-lit option does not belong to this product type');
+    e.statusCode = 400;
+    throw e;
+  }
+  return option;
+};
 
 exports.getCart = async (req, res, next) => {
   try {
@@ -12,6 +35,14 @@ exports.getCart = async (req, res, next) => {
 
 exports.addItem = async (req, res, next) => {
   try {
+    sanitizeOptionalImageFields(req.body);
+    if (req.file?.location) {
+      req.body.uploaded_image_url = req.file.location;
+    }
+    await validateIlluminationOptionForProductType(
+      req.body.illumination_option_id,
+      req.body.product_type_id
+    );
     const result = await cartModel.addItem({ ...req.body, user_id: req.user.id });
     return created(res, { id: result.insertId }, 'Item added to cart');
   } catch (err) { next(err); }
@@ -19,8 +50,19 @@ exports.addItem = async (req, res, next) => {
 
 exports.updateItem = async (req, res, next) => {
   try {
+    sanitizeOptionalImageFields(req.body);
+    if (req.file?.location) {
+      req.body.uploaded_image_url = req.file.location;
+    }
     const item = await cartModel.getItemById(req.params.id, req.user.id);
     if (!item) return notFound(res, 'Cart item not found');
+    if (!req.body.product_type_id) {
+      return error(res, 'product_type_id is required while updating cart item', 400);
+    }
+    await validateIlluminationOptionForProductType(
+      req.body.illumination_option_id,
+      req.body.product_type_id
+    );
     await cartModel.updateItem(req.params.id, req.body);
     return success(res, {}, 'Cart item updated');
   } catch (err) { next(err); }

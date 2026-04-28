@@ -1,6 +1,20 @@
-const db               = require('../config/db');
+const db = require('../config/db');
 const vendorPricingModel = require('../models/vendorPricingModel');
-const vendorModel      = require('../models/vendorModel');
+const vendorModel = require('../models/vendorModel');
+
+/**
+ * Area in square feet from width × height in the customer's chosen unit.
+ * dimension_units.conversion_to_sqft = feet per 1 unit of width/height (linear).
+ * Example: foot → 1, inch → 1/12, cm → 0.0328084
+ */
+const computeAreaSqft = async (height, width, dimensionUnitId) => {
+  const h = parseFloat(height) || 0;
+  const w = parseFloat(width) || 0;
+  if (!dimensionUnitId) return h * w;
+  const unit = await db.findOne('SELECT conversion_to_sqft FROM dimension_units WHERE id = ?', [dimensionUnitId]);
+  const linearFt = parseFloat(unit?.conversion_to_sqft || 1);
+  return h * w * linearFt * linearFt;
+};
 
 /**
  * Calculate price for one item (cart or order)
@@ -8,24 +22,26 @@ const vendorModel      = require('../models/vendorModel');
  * @param {number|null} vendorId - null = use admin prices
  */
 const calculateItemPrice = async (item, vendorId = null) => {
-  const { material_id, element_id, color_id, letter_style_id,
-          height = 0, width = 0, dimension_unit_id, quantity = 1 } = item;
+  const {
+    material_id,
+    element_id,
+    color_id,
+    font_id,
+    illumination_option_id,
+    height = 0,
+    width = 0,
+    dimension_unit_id,
+    quantity = 1,
+  } = item;
 
-  // 1. Dimension → sqft
-  let conversionFactor = 1;
-  if (dimension_unit_id) {
-    const unit = await db.findOne('SELECT conversion_to_sqft FROM dimension_units WHERE id = ?', [dimension_unit_id]);
-    conversionFactor = parseFloat(unit?.conversion_to_sqft || 1);
-  }
-  const areaSqft = parseFloat(height) * parseFloat(width) * conversionFactor;
+  const areaSqft = await computeAreaSqft(height, width, dimension_unit_id);
 
-  // 2. Material cost
+  // Material cost (per sq ft)
   let pricePerSqft = 0;
   let materialCost = 0;
   if (material_id) {
     const material = await db.findOne('SELECT admin_price_per_sqft FROM materials WHERE id = ?', [material_id]);
     pricePerSqft = parseFloat(material?.admin_price_per_sqft || 0);
-
     if (vendorId) {
       const vp = await vendorPricingModel.getMaterialPrice(vendorId, material_id);
       if (vp) pricePerSqft = parseFloat(vp.price_per_sqft);
@@ -33,7 +49,7 @@ const calculateItemPrice = async (item, vendorId = null) => {
     materialCost = areaSqft * pricePerSqft;
   }
 
-  // 3. Element extra
+  // Element extra (flat add-on, not multiplied by area in current model)
   let elementCost = 0;
   if (element_id) {
     const element = await db.findOne('SELECT admin_price_extra FROM elements WHERE id = ?', [element_id]);
@@ -44,7 +60,7 @@ const calculateItemPrice = async (item, vendorId = null) => {
     }
   }
 
-  // 4. Color extra
+  // Color extra (flat)
   let colorExtra = 0;
   if (color_id) {
     const color = await db.findOne('SELECT admin_price_extra FROM colors WHERE id = ?', [color_id]);
@@ -55,36 +71,64 @@ const calculateItemPrice = async (item, vendorId = null) => {
     }
   }
 
-  // 5. Letter style
-  let multiplier       = 1;
-  let letterStyleExtra = 0;
-  if (letter_style_id) {
-    const ls = await db.findOne('SELECT price_multiplier, admin_price_extra FROM letter_styles WHERE id = ?', [letter_style_id]);
-    multiplier       = parseFloat(ls?.price_multiplier || 1);
-    letterStyleExtra = parseFloat(ls?.admin_price_extra || 0);
-    if (vendorId) {
-      const vp = await vendorPricingModel.getLetterStylePrice(vendorId, letter_style_id);
-      if (vp) {
-        if (vp.price_multiplier) multiplier       = parseFloat(vp.price_multiplier);
-        if (vp.price_extra)      letterStyleExtra  = parseFloat(vp.price_extra);
+  // Font extra (per product-type row if present; flat add-on for cart line)
+  let fontExtra = 0;
+  if (font_id && item.product_type_id) {
+    try {
+      const row = await db.findOne(
+        `SELECT ftp.admin_price_extra
+         FROM font_product_type_pricing ftp
+         WHERE ftp.font_id = ? AND ftp.product_type_id = ? AND ftp.is_active = 1`,
+        [font_id, item.product_type_id]
+      );
+      fontExtra = parseFloat(row?.admin_price_extra || 0);
+      if (vendorId) {
+        const vp = await db.findOne(
+          `SELECT price_extra FROM vendor_font_pricing
+           WHERE vendor_id = ? AND font_id = ? AND product_type_id = ? AND is_active = 1`,
+          [vendorId, font_id, item.product_type_id]
+        );
+        if (vp) fontExtra = parseFloat(vp.price_extra);
       }
+    } catch (_) {
+      fontExtra = 0;
     }
   }
 
-  const baseSum  = materialCost + elementCost + colorExtra + letterStyleExtra;
-  const unitPrice  = parseFloat((baseSum * multiplier).toFixed(2));
+  // Illumination (Lit / Non-Lit): price per sq ft — no letter-style multiplier here
+  let illuminationCost = 0;
+  let illuminationRatePerSqft = 0;
+  const usesIllumination = Boolean(illumination_option_id);
+  if (usesIllumination) {
+    const io = await db.findOne(
+      'SELECT admin_price_per_sqft FROM illumination_options WHERE id = ? AND is_active = 1',
+      [illumination_option_id]
+    );
+    illuminationRatePerSqft = parseFloat(io?.admin_price_per_sqft || 0);
+    if (vendorId) {
+      const vp = await vendorPricingModel.getIlluminationPrice(vendorId, illumination_option_id);
+      if (vp) illuminationRatePerSqft = parseFloat(vp.price_per_sqft);
+    }
+    illuminationCost = areaSqft * illuminationRatePerSqft;
+  }
+
+  const baseSum =
+    materialCost + elementCost + colorExtra + fontExtra + illuminationCost;
+  const unitPrice = parseFloat(baseSum.toFixed(2));
   const totalPrice = parseFloat((unitPrice * quantity).toFixed(2));
 
   return {
-    area_sqft:          parseFloat(areaSqft.toFixed(4)),
-    price_per_sqft:     pricePerSqft,
-    material_cost:      parseFloat(materialCost.toFixed(2)),
-    element_cost:       parseFloat(elementCost.toFixed(2)),
-    color_extra:        parseFloat(colorExtra.toFixed(2)),
-    letter_style_extra: parseFloat(letterStyleExtra.toFixed(2)),
-    unit_price:         unitPrice,
-    quantity:           parseInt(quantity),
-    total_price:        totalPrice,
+    area_sqft: parseFloat(areaSqft.toFixed(4)),
+    price_per_sqft: pricePerSqft,
+    material_cost: parseFloat(materialCost.toFixed(2)),
+    element_cost: parseFloat(elementCost.toFixed(2)),
+    color_extra: parseFloat(colorExtra.toFixed(2)),
+    font_extra: parseFloat(fontExtra.toFixed(2)),
+    illumination_cost: parseFloat(illuminationCost.toFixed(2)),
+    illumination_rate_per_sqft: parseFloat(illuminationRatePerSqft.toFixed(4)),
+    unit_price: unitPrice,
+    quantity: parseInt(quantity, 10),
+    total_price: totalPrice,
   };
 };
 
@@ -102,21 +146,25 @@ const getVendorComparison = async (item) => {
     vendors.map(async (v) => {
       const price = await calculateItemPrice(item, v.id);
       return {
-        vendor_id:     v.id,
+        vendor_id: v.id,
         business_name: v.business_name,
-        logo_url:      v.logo_url,
+        logo_url: v.logo_url,
         ...price,
       };
     })
   );
 
-  // Sort vendors by total_price ascending
   vendorPrices.sort((a, b) => a.total_price - b.total_price);
 
   return {
-    admin:   { seller: 'Company (Admin)', vendor_id: null, ...adminPrice },
+    admin: {
+      seller: process.env.COMPANY_NAME || 'Company (Admin)',
+      vendor_id: null,
+      logo_url: process.env.COMPANY_LOGO_URL || null,
+      ...adminPrice,
+    },
     vendors: vendorPrices,
   };
 };
 
-module.exports = { calculateItemPrice, getVendorComparison };
+module.exports = { calculateItemPrice, getVendorComparison, computeAreaSqft };

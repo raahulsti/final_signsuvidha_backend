@@ -12,6 +12,7 @@ router.get('/base-colors',        ctrl.getBaseColors);
 router.get('/fonts',              ctrl.getFonts);
 router.get('/font-sizes',         ctrl.getFontSizes);
 router.get('/letter-styles',      ctrl.getLetterStyles);
+router.get('/illumination-options', ctrl.getIlluminationOptions);
 router.get('/dimension-units',    ctrl.getDimensionUnits);
 router.get('/shipping-services',  ctrl.getShippingServices);
 router.get('/listed-products',    ctrl.getListedProducts);

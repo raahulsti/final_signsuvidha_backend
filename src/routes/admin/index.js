@@ -16,6 +16,7 @@ router.use('/base-colors',      require('./baseColors'));
 router.use('/fonts',            require('./fonts'));
 router.use('/font-sizes',       require('./fontSizes'));
 router.use('/letter-styles',    require('./letterStyles'));
+router.use('/illumination-options', require('./illuminationOptions'));
 router.use('/dimension-units',  require('./dimensionUnits'));
 router.use('/shipping-services',require('./shippingServices'));
 router.use('/listed-products',  require('./listedProducts'));

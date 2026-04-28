@@ -1,5 +1,8 @@
 const orderModel  = require('../../models/orderModel');
 const vendorModel = require('../../models/vendorModel');
+const { buildInvoicePdf } = require('../../services/invoiceService');
+const { sendMail } = require('../../services/emailService');
+const { generateInvoiceNumber } = require('../../utils/helpers');
 const { success, notFound, paginated, forbidden } = require('../../utils/response');
 const { getPagination, getPaginationMeta } = require('../../utils/helpers');
 const { ORDER_STATUS } = require('../../utils/constants');
@@ -41,5 +44,60 @@ exports.updateStatus = async (req, res, next) => {
 
     await orderModel.updateStatus(req.params.id, status);
     return success(res, {}, 'Order status updated');
+  } catch (err) { next(err); }
+};
+
+exports.downloadInvoice = async (req, res, next) => {
+  try {
+    const vendor = await vendorModel.getByUserId(req.user.id);
+    if (!vendor) return notFound(res, 'Vendor not found');
+    const order = await orderModel.getById(req.params.id);
+    if (!order || order.vendor_id !== vendor.id) return notFound(res, 'Order not found');
+    const items = await orderModel.getOrderItems(order.id);
+    const { buffer, invoiceNumber } = await buildInvoicePdf({ order, items });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${invoiceNumber}.pdf"`);
+    return res.status(200).send(buffer);
+  } catch (err) { next(err); }
+};
+
+exports.emailInvoice = async (req, res, next) => {
+  try {
+    const vendor = await vendorModel.getByUserId(req.user.id);
+    if (!vendor) return notFound(res, 'Vendor not found');
+    const order = await orderModel.getById(req.params.id);
+    if (!order || order.vendor_id !== vendor.id) return notFound(res, 'Order not found');
+
+    const recipient = req.body?.email || order.customer_email;
+    if (!recipient) {
+      const e = new Error('Customer email not available for this order');
+      e.statusCode = 400;
+      throw e;
+    }
+
+    const items = await orderModel.getOrderItems(order.id);
+    const { buffer } = await buildInvoicePdf({ order, items });
+    const invoiceNumber = generateInvoiceNumber(order.order_number, order.id);
+
+    await sendMail({
+      to: recipient,
+      subject: `Invoice ${invoiceNumber} for Order ${order.order_number}`,
+      html: `
+        <p>Dear ${order.customer_name || 'Customer'},</p>
+        <p>Please find your invoice attached for order <b>${order.order_number}</b>.</p>
+        <p>Total Amount: <b>Rs ${Number(order.total_amount || 0).toFixed(2)}</b></p>
+        <p>Thanks,<br/>SignSuvidha Team</p>
+      `,
+      attachments: [
+        {
+          filename: `${invoiceNumber}.pdf`,
+          content: buffer,
+          contentType: 'application/pdf',
+        },
+      ],
+    });
+
+    return success(res, { email: recipient, invoice_number: invoiceNumber }, 'Invoice emailed successfully');
   } catch (err) { next(err); }
 };

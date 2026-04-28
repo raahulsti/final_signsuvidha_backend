@@ -10,7 +10,8 @@ const baseColorModel   = require('../../models/baseColorModel');
 const fontModel       = require('../../models/fontModel');
 const fontSizeModel   = require('../../models/fontSizeModel');
 const letterStyleModel= require('../../models/letterStyleModel');
-const { success }     = require('../../utils/response');
+const illuminationOptionModel = require('../../models/illuminationOptionModel');
+const { success, error } = require('../../utils/response');
 
 exports.getProductTypes   = async (req, res, next) => { try { return success(res, await productTypeModel.getAll(true)); } catch(e){next(e);} };
 exports.getFontSizes      = async (req, res, next) => { try { return success(res, await fontSizeModel.getAll()); } catch(e){next(e);} };
@@ -51,7 +52,26 @@ exports.getShadowColors = async (req, res, next) => { try { return success(res, 
 exports.getBorderColors = async (req, res, next) => { try { return success(res, await borderColorModel.getAll(req.query.product_type_id)); } catch(e){next(e);} };
 exports.getBaseColors   = async (req, res, next) => { try { return success(res, await baseColorModel.getAll(req.query.product_type_id)); } catch(e){next(e);} };
 exports.getFonts        = async (req, res, next) => { try { return success(res, await fontModel.getAll(req.query.product_type_id)); } catch(e){next(e);} };
-exports.getLetterStyles = async (req, res, next) => { try { return success(res, await letterStyleModel.getAll(req.query.product_type_id)); } catch(e){next(e);} };
+exports.getLetterStyles = async (req, res, next) => { try { return success(res, await letterStyleModel.getAll()); } catch(e){next(e);} };
+
+exports.getIlluminationOptions = async (req, res, next) => {
+  try {
+    const { product_type_id, category } = req.query;
+    if (!product_type_id || !category) {
+      return error(res, 'product_type_id and category (lit|non_lit) are required', 400);
+    }
+    return success(
+      res,
+      await illuminationOptionModel.getAll({
+        productTypeId: product_type_id,
+        category,
+        isActive: true,
+      })
+    );
+  } catch (e) {
+    next(e);
+  }
+};
 
 exports.getListedProducts = async (req, res, next) => {
   try {

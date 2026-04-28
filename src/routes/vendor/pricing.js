@@ -14,7 +14,12 @@ router.put('/elements/:elementId',              validate(v.elementPrice),     ct
 // Color pricing
 router.put('/colors/:colorId',                  validate(v.colorPrice),       ctrl.upsertColorPrice);
 
-// Letter style pricing
-router.put('/letter-styles/:letterStyleId',     validate(v.letterStylePrice), ctrl.upsertLetterStylePrice);
+// Font pricing (product-type based)
+router.get('/fonts',                             ctrl.getAllFontPrices);
+router.put('/fonts/:fontId',                     validate(v.fontPrice),        ctrl.upsertFontPrice);
+
+// Illumination (lit / non-lit) pricing
+router.get('/illumination',                      ctrl.getAllIlluminationPrices);
+router.put('/illumination/:illuminationOptionId', validate(v.illuminationPrice), ctrl.upsertIlluminationPrice);
 
 module.exports = router;

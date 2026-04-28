@@ -8,7 +8,8 @@ const getCartByUser = (userId) =>
             e.name    AS element_name,      e.admin_price_extra,
             c.hex_code, c.name AS color_name,
             f.name    AS font_name,
-            ls.name   AS letter_style_name, ls.price_multiplier,
+            io.name   AS illumination_option_name, io.category AS illumination_category,
+            io.admin_price_per_sqft AS illumination_admin_price_per_sqft,
             du.unit_name,                   du.conversion_to_sqft,
             v.business_name AS vendor_name
      FROM cart_items ci
@@ -17,7 +18,7 @@ const getCartByUser = (userId) =>
      LEFT JOIN elements         e ON e.id  = ci.element_id
      LEFT JOIN colors           c ON c.id  = ci.color_id
      LEFT JOIN fonts            f ON f.id  = ci.font_id
-     LEFT JOIN letter_styles   ls ON ls.id = ci.letter_style_id
+     LEFT JOIN illumination_options io ON io.id = ci.illumination_option_id
      LEFT JOIN dimension_units du ON du.id = ci.dimension_unit_id
      LEFT JOIN vendors          v ON v.id  = ci.vendor_id
      WHERE ci.user_id = ?
@@ -29,23 +30,23 @@ const getItemById = (id, userId) =>
   db.findOne('SELECT * FROM cart_items WHERE id = ? AND user_id = ?', [id, userId]);
 
 const addItem = ({ user_id, product_type_id, material_id, element_id, color_id, font_id,
-                   letter_style_id, text_layers, height, width, dimension_unit_id,
+                   illumination_option_id, text_layers, height, width, dimension_unit_id,
                    uploaded_image_url, preview_image_url, quantity }) =>
   db.execute(
     `INSERT INTO cart_items
        (user_id, product_type_id, material_id, element_id, color_id, font_id,
-        letter_style_id, text_layers, height, width, dimension_unit_id,
+        illumination_option_id, text_layers, height, width, dimension_unit_id,
         uploaded_image_url, preview_image_url, quantity)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [user_id, product_type_id, material_id || null, element_id || null,
-     color_id || null, font_id || null, letter_style_id || null,
+     color_id || null, font_id || null, illumination_option_id || null,
      text_layers ? JSON.stringify(text_layers) : null,
      height || 0, width || 0, dimension_unit_id || null,
      uploaded_image_url || null, preview_image_url || null, quantity || 1]
   );
 
 const updateItem = (id, fields) => {
-  const allowed = ['material_id','element_id','color_id','font_id','letter_style_id',
+  const allowed = ['material_id','element_id','color_id','font_id','illumination_option_id',
                    'text_layers','height','width','dimension_unit_id','quantity',
                    'uploaded_image_url','preview_image_url','vendor_id'];
   const sets = []; const values = [];

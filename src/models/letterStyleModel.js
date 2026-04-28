@@ -1,21 +1,17 @@
 const db = require('../config/db');
 
-const getAll = (productTypeId) => {
-  const where = productTypeId ? 'WHERE product_type_id = ? AND is_active = 1' : 'WHERE is_active = 1';
-  const vals  = productTypeId ? [productTypeId] : [];
-  return db.execute(`SELECT * FROM letter_styles ${where}`, vals);
-};
+const getAll = () => db.execute('SELECT * FROM letter_styles WHERE is_active = 1 ORDER BY id ASC');
 
 const getById = (id) => db.findOne('SELECT * FROM letter_styles WHERE id = ?', [id]);
 
-const create = ({ product_type_id, name, preview_image_url, price_multiplier, admin_price_extra }) =>
+const create = ({ name, preview_image_url }) =>
   db.execute(
-    'INSERT INTO letter_styles (product_type_id, name, preview_image_url, price_multiplier, admin_price_extra) VALUES (?, ?, ?, ?, ?)',
-    [product_type_id, name, preview_image_url || null, price_multiplier || 1.00, admin_price_extra || 0]
+    'INSERT INTO letter_styles (name, preview_image_url) VALUES (?, ?)',
+    [name, preview_image_url || null]
   );
 
 const update = (id, fields) => {
-  const allowed = ['name','preview_image_url','price_multiplier','admin_price_extra','is_active'];
+  const allowed = ['name', 'preview_image_url', 'is_active'];
   const sets = []; const values = [];
   allowed.forEach((k) => { if (fields[k] !== undefined) { sets.push(`${k} = ?`); values.push(fields[k]); } });
   if (!sets.length) return Promise.resolve(null);

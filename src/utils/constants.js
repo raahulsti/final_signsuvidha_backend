@@ -41,5 +41,6 @@ module.exports = {
     USER_UPLOADS:    'user-uploads',
     VENDOR_LOGOS:    'vendor-logos',
     PREVIEWS:        'previews',
+    ILLUMINATION:    'illumination-options',
   },
 };

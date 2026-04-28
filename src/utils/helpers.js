@@ -2,9 +2,18 @@ const { v4: uuidv4 } = require('uuid');
 
 // ── Order number generator ────────────────────────
 const generateOrderNumber = () => {
-  const ts     = Date.now().toString(36).toUpperCase();
-  const random = Math.random().toString(36).substr(2, 5).toUpperCase();
-  return `ORD-${ts}-${random}`;
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const rand = Math.floor(1000 + Math.random() * 9000);
+  return `ORD-${y}${m}${day}-${Date.now().toString().slice(-6)}-${rand}`;
+};
+
+const generateInvoiceNumber = (orderNumber, orderId) => {
+  const safeOrder = String(orderNumber || '').replace(/^ORD-/, '');
+  const suffix = String(orderId || '').padStart(6, '0');
+  return `INV-${safeOrder}-${suffix}`;
 };
 
 // ── OTP generator ─────────────────────────────────
@@ -59,6 +68,7 @@ const buildWhere = (filters = {}) => {
 
 module.exports = {
   generateOrderNumber,
+  generateInvoiceNumber,
   generateOTP,
   getPagination,
   getPaginationMeta,

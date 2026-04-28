@@ -51,12 +51,41 @@ exports.upsertColorPrice = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-// ── Letter Style Pricing ──────────────────────────────────────
-exports.upsertLetterStylePrice = async (req, res, next) => {
+// ── Font Pricing (Product Type based) ─────────────────────────
+exports.getAllFontPrices = async (req, res, next) => {
   try {
     const vendorId = await getVendorId(req.user.id);
-    const { price_multiplier, price_extra } = req.body;
-    await vendorPricingModel.upsertLetterStylePrice(vendorId, req.params.letterStyleId, price_multiplier, price_extra);
-    return success(res, {}, 'Letter style price updated');
+    const productTypeId = req.query.product_type_id ? Number(req.query.product_type_id) : undefined;
+    return success(res, await vendorPricingModel.getAllFontPrices(vendorId, productTypeId));
+  } catch (err) { next(err); }
+};
+
+exports.upsertFontPrice = async (req, res, next) => {
+  try {
+    const vendorId = await getVendorId(req.user.id);
+    const { product_type_id, price_extra } = req.body;
+    await vendorPricingModel.upsertFontPrice(vendorId, req.params.fontId, product_type_id, price_extra);
+    return success(res, {}, 'Font price updated');
+  } catch (err) { next(err); }
+};
+
+// ── Illumination (Lit / Non-Lit) ──────────────────────────────
+exports.getAllIlluminationPrices = async (req, res, next) => {
+  try {
+    const vendorId = await getVendorId(req.user.id);
+    const productTypeId = req.query.product_type_id ? Number(req.query.product_type_id) : undefined;
+    return success(res, await vendorPricingModel.getAllIlluminationPrices(vendorId, productTypeId));
+  } catch (err) { next(err); }
+};
+
+exports.upsertIlluminationPrice = async (req, res, next) => {
+  try {
+    const vendorId = await getVendorId(req.user.id);
+    await vendorPricingModel.upsertIlluminationPrice(
+      vendorId,
+      req.params.illuminationOptionId,
+      req.body.price_per_sqft
+    );
+    return success(res, {}, 'Illumination price updated');
   } catch (err) { next(err); }
 };

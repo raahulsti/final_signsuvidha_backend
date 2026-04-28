@@ -17,22 +17,22 @@ const create = async (conn, { customer_user_id, vendor_id, order_number, shippin
 
 const createItem = (conn, item) => {
   const { order_id, product_type_id, material_id, element_id, color_id, font_id,
-          letter_style_id, text_layers, height, width, dimension_unit_id,
+          illumination_option_id, text_layers, height, width, dimension_unit_id,
           uploaded_image_url, price_per_sqft, material_cost, element_cost,
-          color_extra, letter_style_extra, unit_price, quantity, total_price, preview_image_url } = item;
+          color_extra, illumination_cost, unit_price, quantity, total_price, preview_image_url } = item;
   return conn.execute(
     `INSERT INTO order_items
        (order_id, product_type_id, material_id, element_id, color_id, font_id,
-        letter_style_id, text_layers, height, width, dimension_unit_id, uploaded_image_url,
-        price_per_sqft, material_cost, element_cost, color_extra, letter_style_extra,
+        illumination_option_id, text_layers, height, width, dimension_unit_id, uploaded_image_url,
+        price_per_sqft, material_cost, element_cost, color_extra, illumination_cost,
         unit_price, quantity, total_price, preview_image_url)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [order_id, product_type_id, material_id || null, element_id || null,
-     color_id || null, font_id || null, letter_style_id || null,
+     color_id || null, font_id || null, illumination_option_id || null,
      text_layers ? JSON.stringify(text_layers) : null,
      height, width, dimension_unit_id, uploaded_image_url || null,
-     price_per_sqft, material_cost, element_cost, color_extra,
-     letter_style_extra, unit_price, quantity, total_price, preview_image_url || null]
+     price_per_sqft, material_cost, element_cost, color_extra, illumination_cost ?? 0,
+     unit_price, quantity, total_price, preview_image_url || null]
   );
 };
 
@@ -53,8 +53,10 @@ const getByCustomer = ({ userId, status, offset, limit }) => {
 
 const getById = (id) =>
   db.findOne(
-    `SELECT o.*, v.business_name AS vendor_name, ss.name AS shipping_service_name
+    `SELECT o.*, u.name AS customer_name, u.email AS customer_email, u.phone AS customer_phone,
+            v.business_name AS vendor_name, ss.name AS shipping_service_name
      FROM orders o
+     LEFT JOIN users u              ON u.id  = o.customer_user_id
      LEFT JOIN vendors v            ON v.id  = o.vendor_id
      LEFT JOIN shipping_services ss ON ss.id  = o.shipping_service_id
      WHERE o.id = ?`, [id]
@@ -62,7 +64,7 @@ const getById = (id) =>
 
 const getOrderItems = (orderId) =>
   db.execute(
-    `SELECT oi.*, pt.name AS product_type_name
+    `SELECT oi.*, pt.name AS product_type_name, pt.name AS product_name
      FROM order_items oi
      LEFT JOIN product_types pt ON pt.id = oi.product_type_id
      WHERE oi.order_id = ?`, [orderId]
