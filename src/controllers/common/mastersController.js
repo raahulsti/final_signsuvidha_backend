@@ -60,14 +60,13 @@ exports.getIlluminationOptions = async (req, res, next) => {
     if (!product_type_id || !category) {
       return error(res, 'product_type_id and category (lit|non_lit) are required', 400);
     }
-    return success(
-      res,
-      await illuminationOptionModel.getAll({
-        productTypeId: product_type_id,
-        category,
-        isActive: true,
-      })
-    );
+    const rows = await illuminationOptionModel.getAll({
+      productTypeId: product_type_id,
+      category,
+      isActive: true,
+    });
+    const withUnit = rows.map((row) => ({ ...row, unit: 'square feet' }));
+    return success(res, withUnit);
   } catch (e) {
     next(e);
   }
