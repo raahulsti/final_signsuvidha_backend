@@ -8,8 +8,13 @@ const db          = require('../config/db');
 
 exports.register = async (req, res, next) => {
   try {
-    const userId = await authService.register(req.body);
-    return created(res, { user_id: userId }, 'Registration successful');
+    const { userId, otp } = await authService.register(req.body);
+    const data = { user_id: userId, is_active: req.body.role === 'customer' ? 0 : 1 };
+    if (req.body.role === 'customer') data.verification_required = true;
+    if (process.env.NODE_ENV === 'development' && otp) data.otp = otp;
+    return created(res, data, req.body.role === 'customer'
+      ? 'Registration initiated. Verify OTP to activate account'
+      : 'Registration successful');
   } catch (err) { next(err); }
 };
 
@@ -40,41 +45,42 @@ exports.verifyOtp = async (req, res, next) => {
     // OTP verify from db here
     await authService.verifyOtp({ contact, contactType, otp_code, purpose });
 
-    // ── LOGIN OR REGISTER → Generate Token ────────────────────────
+    // ── LOGIN OR REGISTER → activate (if register) + Generate Token ───────────
     if (purpose === 'login' || purpose === 'register') {
-      // User find by phone or email
-      const user = email
-        ? await userModel.findByEmail(email)
-        : await userModel.findByPhone(phone);
-
+      const user = email ? await userModel.findByEmail(email) : await userModel.findByPhone(phone);
       if (!user) {
         const err = new Error('User not found'); err.statusCode = 404; throw err;
       }
-      if (!user.is_active) {
+
+      if (purpose === 'register' && !user.is_active) {
+        await userModel.setActive(user.id, true);
+      }
+
+      const latestUser = await userModel.findById(user.id);
+      if (!latestUser || !latestUser.is_active) {
         const err = new Error('Account is inactive'); err.statusCode = 403; throw err;
       }
 
-      const roles   = await userModel.getRoles(user.id);
+      const roles = await userModel.getRoles(user.id);
       const roleArr = roles.map((r) => r.name);
-
-      const payload      = { user_id: user.id, roles: roleArr };
-      const accessToken  = generateAccessToken(payload);
+      const payload = { user_id: user.id, roles: roleArr };
+      const accessToken = generateAccessToken(payload);
       const refreshToken = generateRefreshToken(payload);
-      const expiresAt    = moment().add(7, 'days').toDate();
-
+      const expiresAt = moment().add(7, 'days').toDate();
       await authModel.saveToken(user.id, accessToken, req.headers['user-agent'], expiresAt);
 
       return success(res, {
         user: {
-          id:    user.id,
-          name:  user.name,
-          email: user.email,
-          phone: user.phone,
+          id: latestUser.id,
+          name: latestUser.name,
+          email: latestUser.email,
+          phone: latestUser.phone,
+          gender: latestUser.gender,
           roles: roleArr,
         },
         accessToken,
         refreshToken,
-      }, 'OTP verified. Login successful');
+      }, purpose === 'register' ? 'OTP verified. Account activated and login successful' : 'OTP verified. Login successful');
     }
 
     // ── FORGOT PASSWORD → Generate Reset Token (short lived) ──────

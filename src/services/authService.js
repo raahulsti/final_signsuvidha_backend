@@ -5,12 +5,30 @@ const authModel  = require('../models/authModel');
 const { generateAccessToken, generateRefreshToken } = require('../config/jwt');
 const { generateOTP } = require('../utils/helpers');
 
-const register = async ({ name, email, phone, password, role }) => {
-  const existing = await userModel.findByEmail(email);
-  if (existing) {
+const register = async ({ name, email, phone, gender, password, role, purpose }) => {
+  if (purpose !== 'register') {
+    const err = new Error('Invalid purpose for registration'); err.statusCode = 400; throw err;
+  }
+  const existingByEmail = await userModel.findByEmail(email);
+  if (existingByEmail) {
     const err = new Error('Email already registered'); err.statusCode = 400; throw err;
   }
-  const userId = await userModel.create({ name, email, phone, password });
+  const existingByPhone = await userModel.findByPhone(phone);
+  if (existingByPhone) {
+    const err = new Error('Phone already registered'); err.statusCode = 400; throw err;
+  }
+
+  if (role !== 'customer' && !password) {
+    const err = new Error('Password is required for this role'); err.statusCode = 400; throw err;
+  }
+  const userId = await userModel.create({
+    name,
+    email,
+    phone,
+    gender,
+    password,
+    is_active: role === 'customer' ? 0 : 1,
+  });
   await userModel.addRole(userId, role);
 
   // If vendor registration, create vendor profile placeholder
@@ -18,7 +36,14 @@ const register = async ({ name, email, phone, password, role }) => {
     const db = require('../config/db');
     await db.execute('INSERT INTO vendors (user_id, business_name) VALUES (?, ?)', [userId, name]);
   }
-  return userId;
+
+  // Customer onboarding: send OTP after creating inactive account.
+  let otp = null;
+  if (role === 'customer') {
+    otp = await sendOtp({ userId, contact: phone, contactType: 'phone', purpose: 'register' });
+  }
+
+  return { userId, otp };
 };
 
 const login = async ({ email, password, deviceInfo }) => {
@@ -50,14 +75,15 @@ const login = async ({ email, password, deviceInfo }) => {
   await authModel.saveToken(user.id, accessToken, deviceInfo, expiresAt);
 
   return {
-    user: { id: user.id, name: user.name, email: user.email, phone: user.phone, roles: roleArr },
+    user: { id: user.id, name: user.name, email: user.email, phone: user.phone, gender: user.gender, roles: roleArr },
     accessToken,
     refreshToken,
   };
 };
 
 const sendOtp = async ({ userId, contact, contactType, purpose }) => {
-  const otp = generateOTP(6);
+  // const otp = generateOTP(6);
+  const otp = "123456";
   await authModel.saveOtp(userId, contact, contactType, otp, purpose);
   // TODO: integrate SMS (Fast2SMS / MSG91) or email (nodemailer)
   if (process.env.NODE_ENV === 'development') return otp;

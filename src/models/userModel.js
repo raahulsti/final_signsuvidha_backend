@@ -6,7 +6,7 @@ const findByEmail = (email) =>
 
 const findById = (id) =>
   db.findOne(
-    `SELECT u.id, u.name, u.email, u.phone, u.is_active,
+    `SELECT u.id, u.name, u.email, u.phone, u.gender, u.is_active,
             GROUP_CONCAT(r.name) AS roles_str
      FROM users u
      LEFT JOIN user_roles ur ON ur.user_id = u.id
@@ -16,11 +16,12 @@ const findById = (id) =>
     [id]
   );
 
-const create = async ({ name, email, phone, password }) => {
-  const hash   = bcrypt.hashSync(password, 12);
+const create = async ({ name, email, phone, gender, password, is_active = 1 }) => {
+  const effectivePassword = password || `OTP_ONLY_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  const hash   = bcrypt.hashSync(effectivePassword, 12);
   const result = await db.execute(
-    'INSERT INTO users (name, email, phone, password_hash) VALUES (?, ?, ?, ?)',
-    [name, email, phone, hash]
+    'INSERT INTO users (name, email, phone, gender, password_hash, is_active) VALUES (?, ?, ?, ?, ?, ?)',
+    [name, email, phone, gender || null, hash, is_active ? 1 : 0]
   );
   return result.insertId;
 };
@@ -53,4 +54,7 @@ const updateProfile = (userId, { name, phone }) =>
  const findByPhone = (phone) =>
     db.findOne('SELECT * FROM users WHERE phone = ?', [phone]);
 
-module.exports = { findByEmail, findById, create, comparePassword, getRoles, addRole, updateProfile , findByPhone };
+const setActive = (userId, isActive) =>
+  db.execute('UPDATE users SET is_active = ?, updated_at = NOW() WHERE id = ?', [isActive ? 1 : 0, userId]);
+
+module.exports = { findByEmail, findById, create, comparePassword, getRoles, addRole, updateProfile , findByPhone, setActive };

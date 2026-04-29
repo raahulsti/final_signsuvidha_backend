@@ -5,9 +5,19 @@ const register = Joi.object({
   email:    Joi.string().email().required(),
   phone:    Joi.string().pattern(/^[6-9]\d{9}$/).required()
               .messages({ 'string.pattern.base': 'Enter a valid 10-digit Indian mobile number' }),
-  password: Joi.string().min(8).required()
-              .messages({ 'string.min': 'Password must be at least 8 characters' }),
+  gender:   Joi.string().valid('male', 'female', 'other').required(),
+  purpose:  Joi.string().valid('register').required(),
   role:     Joi.string().valid('vendor', 'customer').required(),
+  password: Joi.when('role', {
+    is: 'customer',
+    then: Joi.string().min(8).optional().allow('', null)
+      .messages({ 'string.min': 'Password must be at least 8 characters' }),
+    otherwise: Joi.string().min(8).required()
+      .messages({
+        'any.required': 'Password is required for this role',
+        'string.min': 'Password must be at least 8 characters',
+      }),
+  }),
 });
 
 const login = Joi.object({
