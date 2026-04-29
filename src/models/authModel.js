@@ -26,16 +26,18 @@ const saveOtp = (userId, contact, contactType, otpCode, purpose) => {
   );
 };
 
+// AND purpose = ?
 const findValidOtp = (contact, contactType, otpCode, purpose) => {
   const field = contactType === 'email' ? 'email' : 'phone';
   return db.findOne(
     `SELECT * FROM otp_verifications
-     WHERE ${field} = ? AND otp_code = ? AND purpose = ?
+     WHERE ${field} = ? AND otp_code = ?
        AND is_used = 0 AND expires_at > NOW()
      ORDER BY created_at DESC LIMIT 1`,
-    [contact, otpCode, purpose]
+    [contact, otpCode]
   );
 };
+
 
 const markOtpUsed = (id) =>
   db.execute('UPDATE otp_verifications SET is_used = 1 WHERE id = ?', [id]);
