@@ -52,7 +52,14 @@ exports.verifyOtp = async (req, res, next) => {
         const err = new Error('User not found'); err.statusCode = 404; throw err;
       }
 
-      if (purpose === 'register' && !user.is_active) {
+      const roles = await userModel.getRoles(user.id);
+      const roleArr = roles.map((r) => r.name);
+      const isCustomer = roleArr.includes('customer');
+
+      // Professional onboarding behavior:
+      // If customer is inactive but OTP is verified (register/login purpose),
+      // activate account and continue login.
+      if (!user.is_active && isCustomer) {
         await userModel.setActive(user.id, true);
       }
 
@@ -61,8 +68,6 @@ exports.verifyOtp = async (req, res, next) => {
         const err = new Error('Account is inactive'); err.statusCode = 403; throw err;
       }
 
-      const roles = await userModel.getRoles(user.id);
-      const roleArr = roles.map((r) => r.name);
       const payload = { user_id: user.id, roles: roleArr };
       const accessToken = generateAccessToken(payload);
       const refreshToken = generateRefreshToken(payload);
