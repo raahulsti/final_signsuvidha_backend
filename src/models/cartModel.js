@@ -1,5 +1,27 @@
 const db = require('../config/db');
 
+const parseTextLayers = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (_) {
+      return [];
+    }
+  }
+  return [];
+};
+
+const normalizeCartRow = (row) => {
+  if (!row) return row;
+  return {
+    ...row,
+    text_layers: parseTextLayers(row.text_layers),
+  };
+};
+
 const getCartByUser = (userId) =>
   db.execute(
     `SELECT ci.*,
@@ -24,10 +46,10 @@ const getCartByUser = (userId) =>
      WHERE ci.user_id = ?
      ORDER BY ci.created_at DESC`,
     [userId]
-  );
+  ).then((rows) => rows.map(normalizeCartRow));
 
 const getItemById = (id, userId) =>
-  db.findOne('SELECT * FROM cart_items WHERE id = ? AND user_id = ?', [id, userId]);
+  db.findOne('SELECT * FROM cart_items WHERE id = ? AND user_id = ?', [id, userId]).then(normalizeCartRow);
 
 const addItem = ({ user_id, product_type_id, material_id, element_id, color_id, font_id,
                    illumination_option_id, text_layers, height, width, dimension_unit_id,

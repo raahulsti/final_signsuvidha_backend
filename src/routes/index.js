@@ -1,7 +1,8 @@
 const router = require('express').Router();
-const { defaultLimiter } = require('../middleware/rateLimiter');
+// const { defaultLimiter } = require('../middleware/rateLimiter');
 
-router.use(defaultLimiter);
+// TODO: re-enable global rate limiting when ready (prevents "Too many requests")
+// router.use(defaultLimiter);
 
 router.use('/auth',     require('./auth'));
 router.use('/admin',    require('./admin'));

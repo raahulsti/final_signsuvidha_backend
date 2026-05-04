@@ -9,6 +9,24 @@ const textLayer = Joi.object({
   y:         Joi.number().optional(),
 });
 
+const textLayerArray = Joi.array().items(textLayer);
+
+const textLayersField = Joi.alternatives()
+  .try(
+    textLayerArray,
+    Joi.string().custom((value, helpers) => {
+      try {
+        const parsed = JSON.parse(value);
+        const { error, value: validated } = textLayerArray.validate(parsed);
+        if (error) return helpers.error('any.invalid');
+        return validated;
+      } catch (_) {
+        return helpers.error('any.invalid');
+      }
+    }, 'text_layers JSON parser')
+  )
+  .messages({ 'any.invalid': 'text_layers must be a valid JSON array' });
+
 const addToCart = Joi.object({
   product_type_id:   Joi.number().integer().positive().required(),
   material_id:       Joi.number().integer().positive().optional().allow(null),
@@ -16,7 +34,7 @@ const addToCart = Joi.object({
   color_id:          Joi.number().integer().positive().optional().allow(null),
   font_id:           Joi.number().integer().positive().optional().allow(null),
   illumination_option_id: Joi.number().integer().positive().optional().allow(null),
-  text_layers:       Joi.array().items(textLayer).optional(),
+  text_layers:       textLayersField.optional(),
   height:            Joi.number().min(0).optional(),
   width:             Joi.number().min(0).optional(),
   dimension_unit_id: Joi.number().integer().positive().optional().allow(null),
