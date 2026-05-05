@@ -3,7 +3,16 @@ const multerS3 = require('multer-s3');
 const { s3Client, BUCKET } = require('../config/aws');
 const { sanitizeFilename }  = require('../utils/helpers');
 
-const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'];
+const ALLOWED_IMAGE_TYPES = [
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+  'image/svg+xml',
+  'image/heic',
+  'image/heif',
+  'application/octet-stream',
+];
 const ALLOWED_FONT_TYPES  = ['font/ttf', 'font/woff', 'font/woff2', 'application/octet-stream'];
 
 /**
