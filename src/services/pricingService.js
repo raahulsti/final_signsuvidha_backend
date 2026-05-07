@@ -4,16 +4,16 @@ const vendorModel = require('../models/vendorModel');
 
 /**
  * Area in square feet from width × height in the customer's chosen unit.
- * dimension_units.conversion_to_sqft = feet per 1 unit of width/height (linear).
- * Example: foot → 1, inch → 1/12, cm → 0.0328084
+ * dimension_units.conversion_to_sqft = area conversion factor to sq ft.
+ * Example: foot² → 1, inch² → 0.006944, meter² → 10.7639
  */
 const computeAreaSqft = async (height, width, dimensionUnitId) => {
   const h = parseFloat(height) || 0;
   const w = parseFloat(width) || 0;
   if (!dimensionUnitId) return h * w;
   const unit = await db.findOne('SELECT conversion_to_sqft FROM dimension_units WHERE id = ?', [dimensionUnitId]);
-  const linearFt = parseFloat(unit?.conversion_to_sqft || 1);
-  return h * w * linearFt * linearFt;
+  const areaFactor = parseFloat(unit?.conversion_to_sqft || 1);
+  return h * w * areaFactor;
 };
 
 /**
