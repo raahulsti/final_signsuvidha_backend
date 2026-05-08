@@ -2,15 +2,18 @@ const db = require('../config/db');
 
 const create = async (conn, { customer_user_id, vendor_id, order_number, shipping_address_id,
                                billing_address_id, billing_same_as_shipping, shipping_service_id,
-                               shipping_cost, subtotal, total_amount, notes }) => {
+                               shipping_cost, subtotal, total_amount, seller_type, seller_id,
+                               gst_percent, gst_amount, payable_amount, notes }) => {
   const [result] = await conn.execute(
     `INSERT INTO orders
-       (customer_user_id, vendor_id, order_number, shipping_address_id, billing_address_id,
-        billing_same_as_shipping, shipping_service_id, shipping_cost, subtotal, total_amount, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [customer_user_id, vendor_id, order_number, shipping_address_id,
-     billing_address_id || null, billing_same_as_shipping ?? 1,
-     shipping_service_id, shipping_cost || 0, subtotal, total_amount, notes || null]
+       (customer_user_id, vendor_id, seller_type, seller_id, order_number, shipping_address_id, billing_address_id,
+        billing_same_as_shipping, shipping_service_id, shipping_cost, subtotal, total_amount,
+        gst_percent, gst_amount, payable_amount, notes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [customer_user_id, vendor_id || null, seller_type || 'admin', seller_id || null, order_number,
+     shipping_address_id, billing_address_id || null, billing_same_as_shipping ?? 1,
+     shipping_service_id || null, shipping_cost || 0, subtotal || 0, total_amount || 0,
+     gst_percent || 0, gst_amount || 0, payable_amount || total_amount || 0, notes || null]
   );
   return result.insertId;
 };
@@ -40,8 +43,9 @@ const getByCustomer = ({ userId, status, offset, limit }) => {
   const conds = ['o.customer_user_id = ?']; const vals = [userId];
   if (status) { conds.push('o.status = ?'); vals.push(status); }
   const sql = `
-    SELECT o.*, v.business_name AS vendor_name, ss.name AS shipping_service_name
+    SELECT o.*, inv.invoice_number, v.business_name AS vendor_name, ss.name AS shipping_service_name
     FROM orders o
+    LEFT JOIN order_invoice_numbers inv ON inv.order_id = o.id
     LEFT JOIN vendors v          ON v.id  = o.vendor_id
     LEFT JOIN shipping_services ss ON ss.id = o.shipping_service_id
     WHERE ${conds.join(' AND ')}
@@ -53,9 +57,10 @@ const getByCustomer = ({ userId, status, offset, limit }) => {
 
 const getById = (id) =>
   db.findOne(
-    `SELECT o.*, u.name AS customer_name, u.email AS customer_email, u.phone AS customer_phone,
+    `SELECT o.*, inv.invoice_number, u.name AS customer_name, u.email AS customer_email, u.phone AS customer_phone,
             v.business_name AS vendor_name, ss.name AS shipping_service_name
      FROM orders o
+     LEFT JOIN order_invoice_numbers inv ON inv.order_id = o.id
      LEFT JOIN users u              ON u.id  = o.customer_user_id
      LEFT JOIN vendors v            ON v.id  = o.vendor_id
      LEFT JOIN shipping_services ss ON ss.id  = o.shipping_service_id
@@ -79,7 +84,19 @@ const updatePayment = (id, { payment_method, payment_status, payment_transaction
     [payment_method, payment_status, payment_transaction_id, id]
   );
 
-module.exports = { create, createItem, getByCustomer, getById, getOrderItems, updateStatus, updatePayment };
+const updateOrderNumber = (id, orderNumber) =>
+  db.execute(
+    'UPDATE orders SET order_number = ?, updated_at = NOW() WHERE id = ?',
+    [orderNumber, id]
+  );
+
+const updatePaymentBatchId = (conn, id, paymentBatchId) =>
+  conn.execute(
+    'UPDATE orders SET payment_batch_id = ?, updated_at = NOW() WHERE id = ?',
+    [paymentBatchId, id]
+  );
+
+module.exports = { create, createItem, getByCustomer, getById, getOrderItems, updateStatus, updatePayment, updateOrderNumber, updatePaymentBatchId };
 
 // Admin: get all orders
 const getAll = ({ status, vendorId, offset, limit }) => {
@@ -88,8 +105,9 @@ const getAll = ({ status, vendorId, offset, limit }) => {
   if (vendorId) { conds.push('o.vendor_id = ?'); vals.push(vendorId); }
   const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
   const sql = `
-    SELECT o.*, u.name AS customer_name, v.business_name AS vendor_name
+    SELECT o.*, inv.invoice_number, u.name AS customer_name, v.business_name AS vendor_name
     FROM orders o
+    LEFT JOIN order_invoice_numbers inv ON inv.order_id = o.id
     LEFT JOIN users u   ON u.id = o.customer_user_id
     LEFT JOIN vendors v ON v.id = o.vendor_id
     ${where}
@@ -104,8 +122,9 @@ const getByVendor = ({ vendorId, status, offset, limit }) => {
   const conds = ['o.vendor_id = ?']; const vals = [vendorId];
   if (status) { conds.push('o.status = ?'); vals.push(status); }
   const sql = `
-    SELECT o.*, u.name AS customer_name
+    SELECT o.*, inv.invoice_number, u.name AS customer_name
     FROM orders o LEFT JOIN users u ON u.id = o.customer_user_id
+    LEFT JOIN order_invoice_numbers inv ON inv.order_id = o.id
     WHERE ${conds.join(' AND ')}
     ORDER BY o.created_at DESC LIMIT ? OFFSET ?
   `;

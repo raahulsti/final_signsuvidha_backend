@@ -2,7 +2,6 @@ const orderModel  = require('../../models/orderModel');
 const vendorModel = require('../../models/vendorModel');
 const { buildInvoicePdf } = require('../../services/invoiceService');
 const { sendMail } = require('../../services/emailService');
-const { generateInvoiceNumber } = require('../../utils/helpers');
 const { success, notFound, paginated, forbidden } = require('../../utils/response');
 const { getPagination, getPaginationMeta } = require('../../utils/helpers');
 const { ORDER_STATUS } = require('../../utils/constants');
@@ -78,7 +77,7 @@ exports.emailInvoice = async (req, res, next) => {
 
     const items = await orderModel.getOrderItems(order.id);
     const { buffer } = await buildInvoicePdf({ order, items });
-    const invoiceNumber = generateInvoiceNumber(order.order_number, order.id);
+    const invoiceNumber = order.invoice_number || `INV-${order.order_number}`;
 
     await sendMail({
       to: recipient,

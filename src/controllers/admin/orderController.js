@@ -1,6 +1,6 @@
 const orderModel = require('../../models/orderModel');
 const { success, notFound, paginated } = require('../../utils/response');
-const { getPagination, getPaginationMeta, generateInvoiceNumber } = require('../../utils/helpers');
+const { getPagination, getPaginationMeta } = require('../../utils/helpers');
 const { buildInvoicePdf } = require('../../services/invoiceService');
 const { sendMail } = require('../../services/emailService');
 
@@ -9,8 +9,7 @@ exports.getAll = async (req, res, next) => {
     const { status, vendor_id, page = 1, limit = 20 } = req.query;
     const { offset, limit: lim } = getPagination(page, limit);
     const { rows, total } = await orderModel.getAll({ status, vendorId: vendor_id, offset, limit: lim });
-    const enriched = rows.map((r) => ({ ...r, invoice_number: generateInvoiceNumber(r.order_number, r.id) }));
-    return paginated(res, enriched, getPaginationMeta(total, page, lim));
+    return paginated(res, rows, getPaginationMeta(total, page, lim));
   } catch (err) { next(err); }
 };
 
@@ -19,7 +18,7 @@ exports.getOne = async (req, res, next) => {
     const order = await orderModel.getById(req.params.id);
     if (!order) return notFound(res, 'Order not found');
     const items = await orderModel.getOrderItems(order.id);
-    return success(res, { ...order, invoice_number: generateInvoiceNumber(order.order_number, order.id), items });
+    return success(res, { ...order, items });
   } catch (err) { next(err); }
 };
 

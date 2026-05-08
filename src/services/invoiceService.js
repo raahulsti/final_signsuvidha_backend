@@ -1,5 +1,4 @@
 const PDFDocument = require('pdfkit');
-const { generateInvoiceNumber } = require('../utils/helpers');
 
 const toMoney = (value) => Number(value || 0).toFixed(2);
 
@@ -22,7 +21,7 @@ const drawRow = (doc, y, cols) => {
 const buildInvoicePdf = async ({ order, items }) => {
   const doc = new PDFDocument({ size: 'A4', margin: 40 });
   const bufferPromise = collectPdfBuffer(doc);
-  const invoiceNumber = generateInvoiceNumber(order.order_number, order.id);
+  const invoiceNumber = order.invoice_number || `INV-${order.order_number || order.id}`;
 
   doc.fillColor('#111111').fontSize(20).text('SignSuvidha Invoice', { align: 'left' });
   doc.moveDown(0.2);
