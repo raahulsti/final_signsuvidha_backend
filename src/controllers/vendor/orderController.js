@@ -85,7 +85,9 @@ exports.emailInvoice = async (req, res, next) => {
       html: `
         <p>Dear ${order.customer_name || 'Customer'},</p>
         <p>Please find your invoice attached for order <b>${order.order_number}</b>.</p>
-        <p>Total Amount: <b>Rs ${Number(order.total_amount || 0).toFixed(2)}</b></p>
+        <p>Taxable amount: <b>Rs ${Number(order.total_amount || 0).toFixed(2)}</b></p>
+        <p>GST (${Number(order.gst_percent || 0).toFixed(2)}%): <b>Rs ${Number(order.gst_amount || 0).toFixed(2)}</b></p>
+        <p>Grand total (incl. GST): <b>Rs ${Number(order.payable_amount != null ? order.payable_amount : Number(order.total_amount || 0) + Number(order.gst_amount || 0)).toFixed(2)}</b></p>
         <p>Thanks,<br/>SignSuvidha Team</p>
       `,
       attachments: [
