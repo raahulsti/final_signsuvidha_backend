@@ -7,6 +7,14 @@ const v        = require('../../validators/vendor/pricing');
 router.get('/materials',                        ctrl.getAllMaterialPrices);
 router.put('/materials/:materialId',            validate(v.materialPrice),    ctrl.upsertMaterialPrice);
 
+// Base pricing (physical base, per sq ft)
+router.get('/bases',                            ctrl.getAllBasePrices);
+router.put('/bases/:baseId',                    validate(v.basePrice),         ctrl.upsertBasePrice);
+
+// Thickness pricing (per sq ft)
+router.get('/thicknesses',                      ctrl.getAllThicknessPrices);
+router.put('/thicknesses/:thicknessId',         validate(v.thicknessPrice),    ctrl.upsertThicknessPrice);
+
 // Element pricing
 router.get('/elements',                         ctrl.getAllElementPrices);
 router.put('/elements/:elementId',              validate(v.elementPrice),     ctrl.upsertElementPrice);

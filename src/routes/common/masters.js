@@ -3,6 +3,8 @@ const ctrl   = require('../../controllers/common/mastersController');
 
 router.get('/product-types',      ctrl.getProductTypes);
 router.get('/materials',          ctrl.getMaterials);
+router.get('/bases',              ctrl.getBases);
+router.get('/thicknesses',       ctrl.getThicknesses);
 router.get('/elements',           ctrl.getElements);
 router.get('/images',             ctrl.getImages);
 router.get('/colors',             ctrl.getColors);

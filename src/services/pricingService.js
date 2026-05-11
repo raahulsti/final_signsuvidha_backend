@@ -24,6 +24,8 @@ const computeAreaSqft = async (height, width, dimensionUnitId) => {
 const calculateItemPrice = async (item, vendorId = null) => {
   const {
     material_id,
+    base_id,
+    thickness_id,
     element_id,
     color_id,
     font_id,
@@ -47,6 +49,39 @@ const calculateItemPrice = async (item, vendorId = null) => {
       if (vp) pricePerSqft = parseFloat(vp.price_per_sqft);
     }
     materialCost = areaSqft * pricePerSqft;
+  }
+
+  // Base (structure) cost — per sq ft, same area as material
+  let basePricePerSqft = 0;
+  let baseCost = 0;
+  if (base_id) {
+    const baseRow = await db.findOne('SELECT admin_price_per_sqft, product_type_id FROM bases WHERE id = ? AND is_active = 1', [base_id]);
+    if (baseRow && String(baseRow.product_type_id) === String(item.product_type_id)) {
+      basePricePerSqft = parseFloat(baseRow.admin_price_per_sqft || 0);
+      if (vendorId) {
+        const vp = await vendorPricingModel.getBasePrice(vendorId, base_id);
+        if (vp) basePricePerSqft = parseFloat(vp.price_per_sqft);
+      }
+      baseCost = areaSqft * basePricePerSqft;
+    }
+  }
+
+  // Thickness — per sq ft (same area model as base / material)
+  let thicknessPricePerSqft = 0;
+  let thicknessCost = 0;
+  if (thickness_id) {
+    const th = await db.findOne(
+      'SELECT admin_price_per_sqft, product_type_id FROM thicknesses WHERE id = ? AND is_active = 1',
+      [thickness_id]
+    );
+    if (th && String(th.product_type_id) === String(item.product_type_id)) {
+      thicknessPricePerSqft = parseFloat(th.admin_price_per_sqft || 0);
+      if (vendorId) {
+        const vp = await vendorPricingModel.getThicknessPrice(vendorId, thickness_id);
+        if (vp) thicknessPricePerSqft = parseFloat(vp.price_per_sqft);
+      }
+      thicknessCost = areaSqft * thicknessPricePerSqft;
+    }
   }
 
   // Element extra (flat add-on, not multiplied by area in current model)
@@ -113,7 +148,7 @@ const calculateItemPrice = async (item, vendorId = null) => {
   }
 
   const baseSum =
-    materialCost + elementCost + colorExtra + fontExtra + illuminationCost;
+    materialCost + baseCost + thicknessCost + elementCost + colorExtra + fontExtra + illuminationCost;
   const unitPrice = parseFloat(baseSum.toFixed(2));
   const totalPrice = parseFloat((unitPrice * quantity).toFixed(2));
 
@@ -121,6 +156,10 @@ const calculateItemPrice = async (item, vendorId = null) => {
     area_sqft: parseFloat(areaSqft.toFixed(4)),
     price_per_sqft: pricePerSqft,
     material_cost: parseFloat(materialCost.toFixed(2)),
+    base_price_per_sqft: parseFloat(basePricePerSqft.toFixed(4)),
+    base_cost: parseFloat(baseCost.toFixed(2)),
+    thickness_price_per_sqft: parseFloat(thicknessPricePerSqft.toFixed(4)),
+    thickness_cost: parseFloat(thicknessCost.toFixed(2)),
     element_cost: parseFloat(elementCost.toFixed(2)),
     color_extra: parseFloat(colorExtra.toFixed(2)),
     font_extra: parseFloat(fontExtra.toFixed(2)),

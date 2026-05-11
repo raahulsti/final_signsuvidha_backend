@@ -7,6 +7,8 @@ router.use(auth, roleCheck('super_admin'));
 router.use('/dashboard',        require('./dashboard'));
 router.use('/product-types',    require('./productTypes'));
 router.use('/materials',        require('./materials'));
+router.use('/bases',            require('./bases'));
+router.use('/thicknesses',      require('./thicknesses'));
 router.use('/elements',         require('./elements'));
 router.use('/image-assets',     require('./imageAssets'));
 router.use('/colors',           require('./colors'));

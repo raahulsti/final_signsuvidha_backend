@@ -12,13 +12,79 @@ const upsertMaterialPrice = (vendorId, materialId, pricePerSqft) =>
     [vendorId, materialId, pricePerSqft, pricePerSqft]
   );
 
+// ── Base Pricing (per sq ft, same pattern as materials) ─────────
+const getBasePrice = (vendorId, baseId) =>
+  db.findOne('SELECT price_per_sqft FROM vendor_base_pricing WHERE vendor_id = ? AND base_id = ? AND is_active = 1', [vendorId, baseId]);
+
+const upsertBasePrice = (vendorId, baseId, pricePerSqft) =>
+  db.execute(
+    `INSERT INTO vendor_base_pricing (vendor_id, base_id, price_per_sqft)
+     VALUES (?, ?, ?)
+     ON DUPLICATE KEY UPDATE price_per_sqft = ?, updated_at = NOW()`,
+    [vendorId, baseId, pricePerSqft, pricePerSqft]
+  );
+
+const getAllBasePrices = (vendorId) =>
+  db.execute(
+    `SELECT
+      b.id AS base_id,
+      b.product_type_id,
+      b.name AS base_name,
+      pt.name AS product_type_name,
+      vbp.price_per_sqft,
+      vbp.is_active
+     FROM bases b
+     LEFT JOIN product_types pt ON pt.id = b.product_type_id
+     LEFT JOIN vendor_base_pricing vbp
+       ON vbp.base_id = b.id
+      AND vbp.vendor_id = ?
+      AND vbp.is_active = 1
+     WHERE b.is_active = 1
+     ORDER BY b.sort_order ASC, b.id ASC`,
+    [vendorId]
+  );
+
+// ── Thickness pricing (per sq ft) ───────────────────────────────
+const getThicknessPrice = (vendorId, thicknessId) =>
+  db.findOne(
+    'SELECT price_per_sqft FROM vendor_thickness_pricing WHERE vendor_id = ? AND thickness_id = ? AND is_active = 1',
+    [vendorId, thicknessId]
+  );
+
+const upsertThicknessPrice = (vendorId, thicknessId, pricePerSqft) =>
+  db.execute(
+    `INSERT INTO vendor_thickness_pricing (vendor_id, thickness_id, price_per_sqft)
+     VALUES (?, ?, ?)
+     ON DUPLICATE KEY UPDATE price_per_sqft = ?, updated_at = NOW()`,
+    [vendorId, thicknessId, pricePerSqft, pricePerSqft]
+  );
+
+const getAllThicknessPrices = (vendorId) =>
+  db.execute(
+    `SELECT
+      t.id AS thickness_id,
+      t.product_type_id,
+      t.name AS thickness_name,
+      pt.name AS product_type_name,
+      vtp.price_per_sqft,
+      vtp.is_active
+     FROM thicknesses t
+     LEFT JOIN product_types pt ON pt.id = t.product_type_id
+     LEFT JOIN vendor_thickness_pricing vtp
+       ON vtp.thickness_id = t.id
+      AND vtp.vendor_id = ?
+      AND vtp.is_active = 1
+     WHERE t.is_active = 1
+     ORDER BY t.sort_order ASC, t.id ASC`,
+    [vendorId]
+  );
+
 const getAllMaterialPrices = (vendorId) =>
   db.execute(
     `SELECT
       m.id AS material_id,
       m.product_type_id,
       m.name AS material_name,
-      m.admin_price_per_sqft,
       pt.name AS product_type_name,
       vmp.price_per_sqft,
       vmp.is_active
@@ -51,7 +117,6 @@ const getAllElementPrices = (vendorId) =>
       e.id AS element_id,
       e.product_type_id,
       e.name AS element_name,
-      e.admin_price_extra,
       pt.name AS product_type_name,
       vep.price_extra,
       vep.is_active
@@ -91,7 +156,6 @@ const getAllFontPrices = (vendorId, productTypeId) => {
       ftp.font_id,
       ftp.product_type_id,
       f.name AS font_name,
-      ftp.admin_price_extra,
       pt.name AS product_type_name,
       vfp.price_extra
      FROM font_product_type_pricing ftp
@@ -146,7 +210,6 @@ const getAllIlluminationPrices = (vendorId, productTypeId) => {
       io.name AS option_name,
       io.description,
       io.preview_image_url,
-      io.admin_price_per_sqft,
       pt.name AS product_type_name,
       vip.price_per_sqft
      FROM illumination_options io
@@ -162,6 +225,8 @@ const getAllIlluminationPrices = (vendorId, productTypeId) => {
 };
 
 module.exports = {
+  getBasePrice, upsertBasePrice, getAllBasePrices,
+  getThicknessPrice, upsertThicknessPrice, getAllThicknessPrices,
   getMaterialPrice, upsertMaterialPrice, getAllMaterialPrices,
   getElementPrice,  upsertElementPrice,  getAllElementPrices,
   getColorPrice,    upsertColorPrice,

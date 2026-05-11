@@ -1,6 +1,8 @@
 const cartModel    = require('../../models/cartModel');
 const vendorModel  = require('../../models/vendorModel');
 const illuminationOptionModel = require('../../models/illuminationOptionModel');
+const baseModel    = require('../../models/baseModel');
+const thicknessModel = require('../../models/thicknessModel');
 const { getVendorComparison, calculateItemPrice } = require('../../services/pricingService');
 const { success, created, notFound, error } = require('../../utils/response');
 const db = require('../../config/db');
@@ -40,6 +42,16 @@ const toNestedCartItem = (item, pricing = null, adminSellerId = null) => ({
     name: item.material_name,
     admin_price_per_sqft: item.admin_price_per_sqft,
   } : null,
+  base: item.base_id ? {
+    id: item.base_id,
+    name: item.base_name,
+    admin_price_per_sqft: item.base_admin_price_per_sqft,
+  } : null,
+  thickness: item.thickness_id ? {
+    id: item.thickness_id,
+    name: item.thickness_name,
+    admin_price_per_sqft: item.thickness_admin_price_per_sqft,
+  } : null,
   element: item.element_id ? {
     id: item.element_id,
     name: item.element_name,
@@ -74,6 +86,10 @@ const toNestedCartItem = (item, pricing = null, adminSellerId = null) => ({
     breakdown: {
       material_price_per_sqft: pricing.price_per_sqft,
       material_cost: pricing.material_cost,
+      base_price_per_sqft: pricing.base_price_per_sqft,
+      base_cost: pricing.base_cost,
+      thickness_price_per_sqft: pricing.thickness_price_per_sqft,
+      thickness_cost: pricing.thickness_cost,
       element_cost: pricing.element_cost,
       color_extra: pricing.color_extra,
       font_extra: pricing.font_extra,
@@ -109,6 +125,38 @@ const buildCartResponse = async (userId) => {
   return enriched;
 };
 
+const validateBaseForProductType = async (baseId, productTypeId) => {
+  if (!baseId) return null;
+  const row = await baseModel.getById(baseId);
+  if (!row || !row.is_active) {
+    const e = new Error('Selected base not found or inactive');
+    e.statusCode = 400;
+    throw e;
+  }
+  if (String(row.product_type_id) !== String(productTypeId)) {
+    const e = new Error('Selected base does not belong to this product type');
+    e.statusCode = 400;
+    throw e;
+  }
+  return row;
+};
+
+const validateThicknessForProductType = async (thicknessId, productTypeId) => {
+  if (!thicknessId) return null;
+  const row = await thicknessModel.getById(thicknessId);
+  if (!row || !row.is_active) {
+    const e = new Error('Selected thickness not found or inactive');
+    e.statusCode = 400;
+    throw e;
+  }
+  if (String(row.product_type_id) !== String(productTypeId)) {
+    const e = new Error('Selected thickness does not belong to this product type');
+    e.statusCode = 400;
+    throw e;
+  }
+  return row;
+};
+
 const validateIlluminationOptionForProductType = async (illuminationOptionId, productTypeId) => {
   if (!illuminationOptionId) return null;
   const option = await illuminationOptionModel.getById(illuminationOptionId);
@@ -141,6 +189,8 @@ exports.addItem = async (req, res, next) => {
       req.body.illumination_option_id,
       req.body.product_type_id
     );
+    await validateBaseForProductType(req.body.base_id, req.body.product_type_id);
+    await validateThicknessForProductType(req.body.thickness_id, req.body.product_type_id);
     const result = await cartModel.addItem({ ...req.body, user_id: req.user.id });
     return created(res, { id: result.insertId }, 'Item added to cart');
   } catch (err) { next(err); }
@@ -161,6 +211,8 @@ exports.updateItem = async (req, res, next) => {
       req.body.illumination_option_id,
       req.body.product_type_id
     );
+    await validateBaseForProductType(req.body.base_id, req.body.product_type_id);
+    await validateThicknessForProductType(req.body.thickness_id, req.body.product_type_id);
     await cartModel.updateItem(req.params.id, req.body);
     return success(res, {}, 'Cart item updated');
   } catch (err) { next(err); }

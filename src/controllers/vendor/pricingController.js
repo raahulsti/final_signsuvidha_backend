@@ -26,6 +26,40 @@ exports.upsertMaterialPrice = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+exports.getAllBasePrices = async (req, res, next) => {
+  try {
+    const vendorId = await getVendorId(req.user.id);
+    return success(res, await vendorPricingModel.getAllBasePrices(vendorId));
+  } catch (err) { next(err); }
+};
+
+exports.upsertBasePrice = async (req, res, next) => {
+  try {
+    const vendorId = await getVendorId(req.user.id);
+    await vendorPricingModel.upsertBasePrice(vendorId, req.params.baseId, req.body.price_per_sqft);
+    return success(res, {}, 'Base price updated');
+  } catch (err) { next(err); }
+};
+
+exports.getAllThicknessPrices = async (req, res, next) => {
+  try {
+    const vendorId = await getVendorId(req.user.id);
+    return success(res, await vendorPricingModel.getAllThicknessPrices(vendorId));
+  } catch (err) { next(err); }
+};
+
+exports.upsertThicknessPrice = async (req, res, next) => {
+  try {
+    const vendorId = await getVendorId(req.user.id);
+    await vendorPricingModel.upsertThicknessPrice(
+      vendorId,
+      req.params.thicknessId,
+      req.body.price_per_sqft
+    );
+    return success(res, {}, 'Thickness price updated');
+  } catch (err) { next(err); }
+};
+
 // ── Element Pricing ───────────────────────────────────────────
 exports.getAllElementPrices = async (req, res, next) => {
   try {

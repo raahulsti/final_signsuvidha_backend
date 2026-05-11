@@ -34,6 +34,8 @@ module.exports = {
 
   S3_FOLDERS: {
     MATERIALS:       'materials',
+    BASES:           'bases',
+    THICKNESSES:     'thicknesses',
     ELEMENTS:        'elements',
     FONTS:           'fonts',
     IMAGE_ASSETS:    'image-assets',

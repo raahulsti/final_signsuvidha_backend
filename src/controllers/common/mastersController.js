@@ -1,6 +1,8 @@
 const db              = require('../../config/db');
 const productTypeModel = require('../../models/productTypeModel');
 const materialModel   = require('../../models/materialModel');
+const baseModel       = require('../../models/baseModel');
+const thicknessModel  = require('../../models/thicknessModel');
 const elementModel    = require('../../models/elementModel');
 const colorModel      = require('../../models/colorModel');
 const imageAssetModel = require('../../models/imageAssetModel');
@@ -24,6 +26,22 @@ exports.getMaterials = async (req, res, next) => {
     const { rows } = await materialModel.getAll({ productTypeId: product_type_id, isActive: true, offset: 0, limit: 1000 });
     return success(res, rows);
   } catch(e){next(e);}
+};
+
+exports.getBases = async (req, res, next) => {
+  try {
+    const { product_type_id } = req.query;
+    const { rows } = await baseModel.getAll({ productTypeId: product_type_id, isActive: true, offset: 0, limit: 1000 });
+    return success(res, rows);
+  } catch (e) { next(e); }
+};
+
+exports.getThicknesses = async (req, res, next) => {
+  try {
+    const { product_type_id } = req.query;
+    const { rows } = await thicknessModel.getAll({ productTypeId: product_type_id, isActive: true, offset: 0, limit: 1000 });
+    return success(res, rows);
+  } catch (e) { next(e); }
 };
 
 exports.getElements = async (req, res, next) => {
