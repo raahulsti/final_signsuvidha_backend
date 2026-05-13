@@ -26,14 +26,15 @@ const getCartByUser = (userId) =>
   db.execute(
     `SELECT ci.*,
             pt.name   AS product_type_name, pt.slug AS product_type_slug,
-            m.name    AS material_name,     m.admin_price_per_sqft,
-            b.name    AS base_name,         b.admin_price_per_sqft AS base_admin_price_per_sqft,
-            th.name   AS thickness_name,    th.admin_price_per_sqft AS thickness_admin_price_per_sqft,
-            e.name    AS element_name,      e.admin_price_extra,
+            m.name    AS material_name,     m.admin_price_per_sqft, m.description AS material_description,
+            b.name    AS base_name,         b.admin_price_per_sqft AS base_admin_price_per_sqft, b.description AS base_description,
+            th.name   AS thickness_name,    th.admin_price_per_sqft AS thickness_admin_price_per_sqft, th.description AS thickness_description,
+            e.name    AS element_name,      e.admin_price_extra, e.description AS element_description,
             c.hex_code, c.name AS color_name,
             f.name    AS font_name,
             io.name   AS illumination_option_name, io.category AS illumination_category,
             io.admin_price_per_sqft AS illumination_admin_price_per_sqft,
+            io.description AS illumination_description,
             du.unit_name,                   du.conversion_to_sqft,
             v.business_name AS vendor_name
      FROM cart_items ci
