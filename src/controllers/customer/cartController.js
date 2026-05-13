@@ -49,24 +49,28 @@ const toNestedCartItem = (item, pricing = null, adminSellerId = null) => ({
     name: item.material_name,
     admin_price_per_sqft: item.admin_price_per_sqft,
     description: nullableDescription(item.material_description),
+    file_url: nullableDescription(item.material_file_url),
   } : null,
   base: item.base_id ? {
     id: item.base_id,
     name: item.base_name,
     admin_price_per_sqft: item.base_admin_price_per_sqft,
     description: nullableDescription(item.base_description),
+    file_url: nullableDescription(item.base_file_url),
   } : null,
   thickness: item.thickness_id ? {
     id: item.thickness_id,
     name: item.thickness_name,
     admin_price_per_sqft: item.thickness_admin_price_per_sqft,
     description: nullableDescription(item.thickness_description),
+    file_url: nullableDescription(item.thickness_file_url),
   } : null,
   element: item.element_id ? {
     id: item.element_id,
     name: item.element_name,
     admin_price_extra: item.admin_price_extra,
     description: nullableDescription(item.element_description),
+    file_url: nullableDescription(item.element_file_url),
   } : null,
   color: item.color_id ? {
     id: item.color_id,
@@ -76,6 +80,7 @@ const toNestedCartItem = (item, pricing = null, adminSellerId = null) => ({
   font: item.font_id ? {
     id: item.font_id,
     name: item.font_name,
+    file_url: nullableDescription(item.font_file_url),
   } : null,
   illumination_option: item.illumination_option_id ? {
     id: item.illumination_option_id,
