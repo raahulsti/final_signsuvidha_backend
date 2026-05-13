@@ -31,7 +31,7 @@ const createItem = (conn, item) => {
         price_per_sqft, material_cost, base_price_per_sqft, base_cost, thickness_price_per_sqft, thickness_cost,
         element_cost, color_extra, illumination_cost,
         unit_price, quantity, total_price, preview_image_url)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [order_id, product_type_id, material_id || null, base_id || null, thickness_id || null, element_id || null,
      color_id || null, font_id || null, illumination_option_id || null,
      text_layers ? JSON.stringify(text_layers) : null,
