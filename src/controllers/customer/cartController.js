@@ -253,8 +253,8 @@ const validateMaterialStyleForProductType = async (materialStyleId, productTypeI
   return row;
 };
 
-/** Wallpaper product: require a material linked to this product type. */
-const validateWallpaperMaterial = async ({ product_type_id, material_id }) => {
+/** Wallpaper product: require material style (Plain / Woven / Textured), not materials table. */
+const validateWallpaperMaterialStyle = async ({ product_type_id, material_style_id }) => {
   const pt = await db.findOne('SELECT slug FROM product_types WHERE id = ?', [product_type_id]);
   if (!pt) {
     const e = new Error('Invalid product type');
@@ -262,20 +262,12 @@ const validateWallpaperMaterial = async ({ product_type_id, material_id }) => {
     throw e;
   }
   if (pt.slug !== PRODUCT_SLUGS.WALLPAPER) return;
-  if (!material_id) {
-    const e = new Error('Select a wallpaper (material) for wallpaper products');
+  if (!material_style_id) {
+    const e = new Error('Select a material style for wallpaper products');
     e.statusCode = 400;
     throw e;
   }
-  const mat = await db.findOne(
-    'SELECT id FROM materials WHERE id = ? AND product_type_id = ? AND is_active = 1',
-    [material_id, product_type_id]
-  );
-  if (!mat) {
-    const e = new Error('Selected wallpaper material not found or does not belong to this product type');
-    e.statusCode = 400;
-    throw e;
-  }
+  await validateMaterialStyleForProductType(material_style_id, product_type_id);
 };
 
 /** Wallpaper product: require a catalog wallpaper row (design) for this product type. */
@@ -321,12 +313,12 @@ exports.addItem = async (req, res, next) => {
       req.body.illumination_option_id,
       req.body.product_type_id
     );
-    await validateMaterialStyleForProductType(req.body.material_style_id, req.body.product_type_id);
     await validateFrameForProductType(req.body.frame_id, req.body.product_type_id);
-    await validateWallpaperMaterial({
+    await validateWallpaperMaterialStyle({
       product_type_id: req.body.product_type_id,
-      material_id: req.body.material_id,
+      material_style_id: req.body.material_style_id,
     });
+    await validateMaterialStyleForProductType(req.body.material_style_id, req.body.product_type_id);
     await validateWallpaperCatalogRow({
       product_type_id: req.body.product_type_id,
       wallpaper_id: req.body.wallpaper_id,
@@ -353,14 +345,14 @@ exports.updateItem = async (req, res, next) => {
       req.body.illumination_option_id,
       req.body.product_type_id
     );
-    await validateMaterialStyleForProductType(req.body.material_style_id, req.body.product_type_id);
     await validateFrameForProductType(req.body.frame_id, req.body.product_type_id);
-    const materialId = req.body.material_id !== undefined ? req.body.material_id : item.material_id;
+    const materialStyleId = req.body.material_style_id !== undefined ? req.body.material_style_id : item.material_style_id;
     const wallpaperId = req.body.wallpaper_id !== undefined ? req.body.wallpaper_id : item.wallpaper_id;
-    await validateWallpaperMaterial({
+    await validateWallpaperMaterialStyle({
       product_type_id: req.body.product_type_id,
-      material_id: materialId,
+      material_style_id: materialStyleId,
     });
+    await validateMaterialStyleForProductType(req.body.material_style_id, req.body.product_type_id);
     await validateWallpaperCatalogRow({
       product_type_id: req.body.product_type_id,
       wallpaper_id: wallpaperId,
