@@ -26,6 +26,55 @@ exports.upsertMaterialPrice = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+exports.getAllMaterialStylePrices = async (req, res, next) => {
+  try {
+    const vendorId = await getVendorId(req.user.id);
+    return success(res, await vendorPricingModel.getAllMaterialStylePrices(vendorId));
+  } catch (err) { next(err); }
+};
+
+exports.upsertMaterialStylePrice = async (req, res, next) => {
+  try {
+    const vendorId = await getVendorId(req.user.id);
+    await vendorPricingModel.upsertMaterialStylePrice(
+      vendorId,
+      req.params.materialStyleId,
+      req.body.price_per_sqft
+    );
+    return success(res, {}, 'Material style price updated');
+  } catch (err) { next(err); }
+};
+
+exports.getAllFramePrices = async (req, res, next) => {
+  try {
+    const vendorId = await getVendorId(req.user.id);
+    return success(res, await vendorPricingModel.getAllFramePrices(vendorId));
+  } catch (err) { next(err); }
+};
+
+exports.upsertFramePrice = async (req, res, next) => {
+  try {
+    const vendorId = await getVendorId(req.user.id);
+    await vendorPricingModel.upsertFramePrice(vendorId, req.params.frameId, req.body.price_per_sqft);
+    return success(res, {}, 'Frame price updated');
+  } catch (err) { next(err); }
+};
+
+exports.getAllWallpaperPrices = async (req, res, next) => {
+  try {
+    const vendorId = await getVendorId(req.user.id);
+    return success(res, await vendorPricingModel.getAllWallpaperPrices(vendorId));
+  } catch (err) { next(err); }
+};
+
+exports.upsertWallpaperPrice = async (req, res, next) => {
+  try {
+    const vendorId = await getVendorId(req.user.id);
+    await vendorPricingModel.upsertWallpaperPrice(vendorId, req.params.wallpaperId, req.body.price_per_sqft);
+    return success(res, {}, 'Wallpaper price updated');
+  } catch (err) { next(err); }
+};
+
 exports.getAllBasePrices = async (req, res, next) => {
   try {
     const vendorId = await getVendorId(req.user.id);

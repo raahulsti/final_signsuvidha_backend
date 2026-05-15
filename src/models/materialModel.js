@@ -24,7 +24,7 @@ const getAll = ({ productTypeId, isActive, offset, limit }) => {
 
 const getById = (id) =>
   db.findOne(
-    `SELECT m.*, pt.name AS product_type_name
+    `SELECT m.*, pt.name AS product_type_name, pt.slug AS product_type_slug
      FROM materials m
      LEFT JOIN product_types pt ON pt.id = m.product_type_id
      WHERE m.id = ?`,

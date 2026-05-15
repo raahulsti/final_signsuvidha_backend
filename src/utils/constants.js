@@ -5,6 +5,9 @@ module.exports = {
     CUSTOMER:    'customer',
   },
 
+  /** Wallpaper catalog tier (stored on `wallpapers.wallpaper_type`; not a separate master table). */
+  WALLPAPER_TYPES: ['regular', 'premium', 'prestige'],
+
   PRODUCT_SLUGS: {
     SIGNAGE_3D:    '3d_signage',
     NAME_PLATE:    'name_plate',
@@ -43,6 +46,8 @@ module.exports = {
     USER_UPLOADS:    'user-uploads',
     VENDOR_LOGOS:    'vendor-logos',
     PREVIEWS:        'previews',
-    ILLUMINATION:    'illumination-options',
+    ILLUMINATION:    'illumination',
+    FRAMES:          'frames',
+    WALLPAPERS:      'wallpapers',
   },
 };

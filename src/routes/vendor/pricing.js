@@ -7,6 +7,15 @@ const v        = require('../../validators/vendor/pricing');
 router.get('/materials',                        ctrl.getAllMaterialPrices);
 router.put('/materials/:materialId',            validate(v.materialPrice),    ctrl.upsertMaterialPrice);
 
+router.get('/material-styles',                  ctrl.getAllMaterialStylePrices);
+router.put('/material-styles/:materialStyleId', validate(v.materialStylePrice), ctrl.upsertMaterialStylePrice);
+
+router.get('/frames',                           ctrl.getAllFramePrices);
+router.put('/frames/:frameId',                  validate(v.framePrice),        ctrl.upsertFramePrice);
+
+router.get('/wallpapers',                       ctrl.getAllWallpaperPrices);
+router.put('/wallpapers/:wallpaperId',          validate(v.wallpaperPrice),    ctrl.upsertWallpaperPrice);
+
 // Base pricing (physical base, per sq ft)
 router.get('/bases',                            ctrl.getAllBasePrices);
 router.put('/bases/:baseId',                    validate(v.basePrice),         ctrl.upsertBasePrice);

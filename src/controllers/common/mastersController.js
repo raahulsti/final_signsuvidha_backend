@@ -1,6 +1,9 @@
 const db              = require('../../config/db');
 const productTypeModel = require('../../models/productTypeModel');
 const materialModel   = require('../../models/materialModel');
+const materialStyleModel = require('../../models/materialStyleModel');
+const frameModel = require('../../models/frameModel');
+const wallpaperModel = require('../../models/wallpaperModel');
 const baseModel       = require('../../models/baseModel');
 const thicknessModel  = require('../../models/thicknessModel');
 const elementModel    = require('../../models/elementModel');
@@ -14,6 +17,7 @@ const fontSizeModel   = require('../../models/fontSizeModel');
 const letterStyleModel= require('../../models/letterStyleModel');
 const illuminationOptionModel = require('../../models/illuminationOptionModel');
 const { success, error } = require('../../utils/response');
+const { WALLPAPER_TYPES } = require('../../utils/constants');
 
 exports.getProductTypes   = async (req, res, next) => { try { return success(res, await productTypeModel.getAll(true)); } catch(e){next(e);} };
 exports.getFontSizes      = async (req, res, next) => { try { return success(res, await fontSizeModel.getAll()); } catch(e){next(e);} };
@@ -23,9 +27,52 @@ exports.getShippingServices = async (req, res, next) => { try { return success(r
 exports.getMaterials = async (req, res, next) => {
   try {
     const { product_type_id } = req.query;
-    const { rows } = await materialModel.getAll({ productTypeId: product_type_id, isActive: true, offset: 0, limit: 1000 });
+    const { rows } = await materialModel.getAll({
+      productTypeId: product_type_id,
+      isActive: true,
+      offset: 0,
+      limit: 1000,
+    });
     return success(res, rows);
   } catch(e){next(e);}
+};
+
+exports.getMaterialStyles = async (req, res, next) => {
+  try {
+    const { product_type_id } = req.query;
+    const { rows } = await materialStyleModel.getAll({ productTypeId: product_type_id, isActive: true, offset: 0, limit: 1000 });
+    return success(res, rows);
+  } catch (e) { next(e); }
+};
+
+exports.getFrames = async (req, res, next) => {
+  try {
+    const { product_type_id } = req.query;
+    const { rows } = await frameModel.getAll({ productTypeId: product_type_id, isActive: true, offset: 0, limit: 1000 });
+    return success(res, rows);
+  } catch (e) { next(e); }
+};
+
+exports.getWallpapers = async (req, res, next) => {
+  try {
+    const { product_type_id, wallpaper_type } = req.query;
+    let wallpaperTypeFilter;
+    if (wallpaper_type !== undefined && wallpaper_type !== null && String(wallpaper_type).trim() !== '') {
+      const t = String(wallpaper_type).toLowerCase().trim();
+      if (!WALLPAPER_TYPES.includes(t)) {
+        return error(res, `wallpaper_type must be one of: ${WALLPAPER_TYPES.join(', ')}`, 400);
+      }
+      wallpaperTypeFilter = t;
+    }
+    const { rows } = await wallpaperModel.getAll({
+      productTypeId: product_type_id,
+      wallpaperType: wallpaperTypeFilter,
+      isActive: true,
+      offset: 0,
+      limit: 1000,
+    });
+    return success(res, rows);
+  } catch (e) { next(e); }
 };
 
 exports.getBases = async (req, res, next) => {

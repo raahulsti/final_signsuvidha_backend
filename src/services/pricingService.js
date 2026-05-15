@@ -24,6 +24,9 @@ const computeAreaSqft = async (height, width, dimensionUnitId) => {
 const calculateItemPrice = async (item, vendorId = null) => {
   const {
     material_id,
+    material_style_id,
+    frame_id,
+    wallpaper_id,
     base_id,
     thickness_id,
     element_id,
@@ -49,6 +52,60 @@ const calculateItemPrice = async (item, vendorId = null) => {
       if (vp) pricePerSqft = parseFloat(vp.price_per_sqft);
     }
     materialCost = areaSqft * pricePerSqft;
+  }
+
+  // Material style — per sq ft (no image master)
+  let materialStylePricePerSqft = 0;
+  let materialStyleCost = 0;
+  if (material_style_id) {
+    const ms = await db.findOne(
+      'SELECT admin_price_per_sqft, product_type_id FROM material_styles WHERE id = ? AND is_active = 1',
+      [material_style_id]
+    );
+    if (ms && String(ms.product_type_id) === String(item.product_type_id)) {
+      materialStylePricePerSqft = parseFloat(ms.admin_price_per_sqft || 0);
+      if (vendorId) {
+        const vp = await vendorPricingModel.getMaterialStylePrice(vendorId, material_style_id);
+        if (vp) materialStylePricePerSqft = parseFloat(vp.price_per_sqft);
+      }
+      materialStyleCost = areaSqft * materialStylePricePerSqft;
+    }
+  }
+
+  // Frame — per sq ft (same pricing model as material)
+  let framePricePerSqft = 0;
+  let frameCost = 0;
+  if (frame_id) {
+    const fr = await db.findOne(
+      'SELECT admin_price_per_sqft, product_type_id FROM frames WHERE id = ? AND is_active = 1',
+      [frame_id]
+    );
+    if (fr && String(fr.product_type_id) === String(item.product_type_id)) {
+      framePricePerSqft = parseFloat(fr.admin_price_per_sqft || 0);
+      if (vendorId) {
+        const vp = await vendorPricingModel.getFramePrice(vendorId, frame_id);
+        if (vp) framePricePerSqft = parseFloat(vp.price_per_sqft);
+      }
+      frameCost = areaSqft * framePricePerSqft;
+    }
+  }
+
+  // Wallpaper catalog — per sq ft (same model as frame)
+  let wallpaperPricePerSqft = 0;
+  let wallpaperCost = 0;
+  if (wallpaper_id) {
+    const wp = await db.findOne(
+      'SELECT admin_price_per_sqft, product_type_id FROM wallpapers WHERE id = ? AND is_active = 1',
+      [wallpaper_id]
+    );
+    if (wp && String(wp.product_type_id) === String(item.product_type_id)) {
+      wallpaperPricePerSqft = parseFloat(wp.admin_price_per_sqft || 0);
+      if (vendorId) {
+        const vp = await vendorPricingModel.getWallpaperPrice(vendorId, wallpaper_id);
+        if (vp) wallpaperPricePerSqft = parseFloat(vp.price_per_sqft);
+      }
+      wallpaperCost = areaSqft * wallpaperPricePerSqft;
+    }
   }
 
   // Base (structure) cost — per sq ft, same area as material
@@ -148,7 +205,16 @@ const calculateItemPrice = async (item, vendorId = null) => {
   }
 
   const baseSum =
-    materialCost + baseCost + thicknessCost + elementCost + colorExtra + fontExtra + illuminationCost;
+    materialCost +
+    materialStyleCost +
+    frameCost +
+    wallpaperCost +
+    baseCost +
+    thicknessCost +
+    elementCost +
+    colorExtra +
+    fontExtra +
+    illuminationCost;
   const unitPrice = parseFloat(baseSum.toFixed(2));
   const totalPrice = parseFloat((unitPrice * quantity).toFixed(2));
 
@@ -156,6 +222,12 @@ const calculateItemPrice = async (item, vendorId = null) => {
     area_sqft: parseFloat(areaSqft.toFixed(4)),
     price_per_sqft: pricePerSqft,
     material_cost: parseFloat(materialCost.toFixed(2)),
+    material_style_price_per_sqft: parseFloat(materialStylePricePerSqft.toFixed(4)),
+    material_style_cost: parseFloat(materialStyleCost.toFixed(2)),
+    frame_price_per_sqft: parseFloat(framePricePerSqft.toFixed(4)),
+    frame_cost: parseFloat(frameCost.toFixed(2)),
+    wallpaper_price_per_sqft: parseFloat(wallpaperPricePerSqft.toFixed(4)),
+    wallpaper_cost: parseFloat(wallpaperCost.toFixed(2)),
     base_price_per_sqft: parseFloat(basePricePerSqft.toFixed(4)),
     base_cost: parseFloat(baseCost.toFixed(2)),
     thickness_price_per_sqft: parseFloat(thicknessPricePerSqft.toFixed(4)),

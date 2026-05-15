@@ -29,4 +29,16 @@ const illuminationPrice = Joi.object({
   price_per_sqft: Joi.number().min(0).required(),
 });
 
-module.exports = { materialPrice, basePrice, thicknessPrice, elementPrice, colorPrice, fontPrice, illuminationPrice };
+const materialStylePrice = Joi.object({
+  price_per_sqft: Joi.number().min(0).required(),
+});
+
+const framePrice = Joi.object({
+  price_per_sqft: Joi.number().min(0).required(),
+});
+
+const wallpaperPrice = Joi.object({
+  price_per_sqft: Joi.number().min(0).required(),
+});
+
+module.exports = { materialPrice, basePrice, thicknessPrice, elementPrice, colorPrice, fontPrice, illuminationPrice, materialStylePrice, framePrice, wallpaperPrice };

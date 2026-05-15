@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>Transfer Certificate</title>
+    <style>
+        @media print {
+            @page {
+                size: A4 portrait;
+                margin: 8mm 10mm;
+            }
+            body {
+                background: #fff !important;
+                padding: 0 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .page {
+                max-width: none !important;
+                margin: 0 !important;
+                border: 1px solid #000;
+            }
+            .tc-title {
+                background-color: #000 !important;
+                color: #fff !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: Arial, Helvetica, 'Nirmala UI', 'Mangal', sans-serif;
+            font-size: 11px;
+            color: #000;
+            background: #e0e0e0;
+            padding: 12px;
+        }
+
+        .page {
+            max-width: 210mm;
+            margin: 0 auto;
+            background: #fff;
+            border: 1px solid #000;
+            padding: 10px 12px 12px;
+        }
+
+        /* ── HEADER ── */
+        .header-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 6px;
+        }
+        .header-table td { vertical-align: middle; padding: 2px 0; }
+        .logo-cell { width: 76px; text-align: left; vertical-align: middle; }
+        .school-info { text-align: center; vertical-align: middle; padding: 0 6px; }
+        .school-name {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 22px;
+            font-weight: 900;
+            letter-spacing: 0.5px;
+            text-transform: none;
+            line-height: 1.1;
+        }
+        .school-tagline {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 11px;
+            font-style: italic;
+            color: #000;
+            margin-top: 3px;
+        }
+        .school-address {
+            font-family: Arial, Helvetica, 'Nirmala UI', sans-serif;
+            font-size: 11px;
+            margin-top: 3px;
+            font-weight: normal;
+        }
+        .school-contact {
+            font-family: Arial, Helvetica, 'Nirmala UI', sans-serif;
+            font-size: 10.5px;
+            margin-top: 2px;
+            color: #000;
+        }
+
+        /* ── TC TITLE BANNER ── */
+        .tc-title {
+            background-color: #000;
+            color: #fff;
+            text-align: center;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 12px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            padding: 5px 6px;
+            margin: 0 0 6px 0;
+        }
+
+        /* ── TOP META (scan: 2 rows × 3 cols + registration) ── */
+        .meta-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 6px;
+            font-size: 11px;
+            font-family: Arial, Helvetica, 'Nirmala UI', sans-serif;
+        }
+        .meta-table td {
+            padding: 3px 4px 4px 0;
+            vertical-align: bottom;
+            width: 33.33%;
+        }
+        .meta-dotline {
+            border-bottom: 1px dotted #000;
+            display: inline-block;
+            min-width: 52px;
+            vertical-align: baseline;
+            padding: 0 2px 1px 4px;
+        }
+        .meta-dotline.wide {
+            min-width: 0;
+            width: 100%;
+        }
+        .meta-reg-row td {
+            width: 100%;
+            padding-top: 2px;
+        }
+
+        /* ── FIELDS ── */
+        .fields-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: Arial, Helvetica, 'Nirmala UI', sans-serif;
+        }
+        .fields-table td {
+            padding: 4px 2px 3px 2px;
+            font-size: 11px;
+            line-height: 1.45;
+            vertical-align: bottom;
+        }
+
+        .fn {
+            width: 22px;
+            text-align: right;
+            padding-right: 6px;
+            white-space: nowrap;
+            vertical-align: top;
+            padding-top: 4px;
+        }
+        .fn-inline {
+            width: 22px;
+            text-align: right;
+            padding-right: 6px;
+            white-space: nowrap;
+            vertical-align: bottom;
+        }
+
+        .fl { vertical-align: bottom; padding-right: 4px; }
+        .fl-shrink {
+            vertical-align: bottom;
+            padding-right: 6px;
+            width: 1%;
+        }
+
+        .fv {
+            border-bottom: 1px dotted #000;
+            vertical-align: bottom;
+            padding: 0 4px 1px 4px;
+            min-height: 15px;
+            width: 100%;
+        }
+
+        .hi { font-size: 11px; }
+        .en { font-size: 11px; color: #000; }
+
+        .inner-tbl { width: 100%; border-collapse: collapse; margin-top: 2px; }
+        .inner-tbl td { padding: 2px 2px 3px 2px; font-size: 11px; line-height: 1.45; vertical-align: bottom; }
+        .inner-lbl { white-space: normal; padding-right: 6px; vertical-align: bottom; }
+        .inner-val {
+            width: 100%;
+            border-bottom: 1px dotted #000;
+            padding: 0 4px 1px 4px;
+            min-height: 15px;
+            vertical-align: bottom;
+        }
+
+        .block-hi { display: block; margin-bottom: 1px; }
+
+        /* ── SIGNATURE ── */
+        .sig-table { width: 100%; border-collapse: collapse; margin-top: 48px; }
+        .sig-table td { width: 33%; text-align: center; vertical-align: top; font-size: 10.5px; padding: 0 6px; }
+        .sig-line { border-top: 1px solid #000; padding-top: 4px; margin-top: 28px; line-height: 1.35; }
+
+        /* ── FOOTER NOTE ── */
+        .footer-note {
+            margin-top: 10px;
+            font-size: 10px;
+            border-top: 1px solid #000;
+            padding-top: 6px;
+            color: #000;
+            line-height: 1.45;
+            font-family: Arial, Helvetica, 'Nirmala UI', sans-serif;
+        }
+    </style>
+</head>
+<body>
+
+<div class="page">
+
+<!-- HEADER -->
+<table class="header-table">
+    <tr>
+        <td class="logo-cell">
+            <img src="{{ $school_logo }}" width="70" height="70" alt="" style="display:block;border-radius:50%;">
+        </td>
+        <td class="school-info">
+            <div class="school-name">{{ $school_name ?? '' }}</div>
+            <div class="school-tagline">{{ $school_tagline ?? '(A Highly Flourishing English Medium School)' }}</div>
+            <div class="school-address">{{ $school_address ?? 'LALPUR (Udham Singh Nagar) Uttarakhand Pin-263148' }}</div>
+            <div class="school-contact">{{ $school_contact ?? 'Ph. : 05944-280785, 94111-95467, Email: rana.ranbir@yahoo.com' }}</div>
+        </td>
+        <td style="width:76px;">&nbsp;</td>
+    </tr>
+</table>
+
+<div class="tc-title">स्थानान्तरण प्रमाण-पत्र / TRANSFER CERTIFICATE</div>
+
+<!-- META (matches scan: no Admission/PEN/UDISE block) -->
+<table class="meta-table">
+    <tr>
+        <td>विद्यालय सं./School No. <span class="meta-dotline">{{ $school['school_rte_code'] ?? '' }}</span></td>
+        <td>पुस्तक संख्या/Book No. <span class="meta-dotline">{{ $book_no }}</span></td>
+        <td>क्रम सं० /Sr. No. <span class="meta-dotline">{{ $sr_no }}</span></td>
+    </tr>
+    <tr>
+        <td>Affiliation No. <span class="meta-dotline">{{ $school['affiliation_no'] ?? '' }}</span></td>
+        <td>Renewed upto <span class="meta-dotline">{{ isset($renewed_upto) ? \Carbon\Carbon::parse($renewed_upto)->format('d/m/Y') : '' }}</span></td>
+        <td>Status of School: <span class="meta-dotline">Secondary / Sr. Secondary</span></td>
+    </tr>
+    <tr class="meta-reg-row">
+        <td colspan="3">
+            Registration No. of the candidate (in case of Class-IX to XII) :
+            <span class="meta-dotline wide" style="display:block;margin-top:2px;">{{ $admisssion_regd_no ?? '' }}</span>
+        </td>
+    </tr>
+</table>
+
+<!-- FIELDS -->
+<table class="fields-table">
+
+    <tr>
+        <td class="fn-inline">1.</td>
+        <td class="fl-shrink"><span class="hi">विद्यार्थी का नाम</span> <span class="en">/Name of the Pupil :</span></td>
+        <td class="fv">{{ strtoupper($name) }}</td>
+    </tr>
+
+    <tr>
+        <td class="fn-inline">2.</td>
+        <td class="fl-shrink"><span class="hi">माता का नाम</span> <span class="en">/Mother's Name :</span></td>
+        <td class="fv">{{ strtoupper($mother_name) }}</td>
+    </tr>
+
+    <tr>
+        <td class="fn-inline">3.</td>
+        <td class="fl-shrink"><span class="hi">पिता का नाम</span> <span class="en">/Father's Name :</span></td>
+        <td class="fv">{{ strtoupper($father_name) }}</td>
+    </tr>
+
+    <tr>
+        <td class="fn-inline">4.</td>
+        <td class="fl-shrink"><span class="hi">राष्ट्रीयता</span> <span class="en">/Nationality :</span></td>
+        <td class="fv">{{ strtoupper($nationality) }}</td>
+    </tr>
+
+    <tr>
+        <td class="fn">5.</td>
+        <td colspan="2" style="padding-top:4px;">
+            <span class="hi block-hi">क्या अनु०जाति/ज०जा०/पिछड़ा वर्ग से सम्बन्धित है। Whether the pupil belongs to SC/ST/OBC Category :</span>
+            <table class="inner-tbl"><tr>
+                <td class="inner-val" colspan="2" style="width:100%;">{{ $tc_data->caste_val ?? '' }}</td>
+            </tr></table>
+        </td>
+    </tr>
+
+    <tr>
+        <td class="fn">6.</td>
+        <td colspan="2" style="padding-top:4px;">
+            <span class="hi">प्रवेश पुस्तिका के अनुसार जन्मतिथि</span> <span class="en">/Date of birth according to the Admission register</span>
+            <table class="inner-tbl">
+                <tr>
+                    <td class="inner-lbl en">(अंकों में/in figures) :</td>
+                    <td class="inner-val">{{ date('d-m-Y', strtotime($dob)) }}</td>
+                </tr>
+                <tr>
+                    <td class="inner-lbl en">(शब्दों में /In words) :</td>
+                    <td class="inner-val">{{ strtoupper($dob_letter) }}</td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+
+    <tr>
+        <td class="fn">7.</td>
+        <td colspan="2" style="padding-top:4px;">
+            <span class="hi">विद्यालय में प्रवेश की तिथि तथा कक्षा जिसमें प्रवेश लिया ?</span> <span class="en">/ Date of first admission in the school with class :</span>
+            <table class="inner-tbl"><tr>
+                <td class="inner-val" colspan="2">{{ \Carbon\Carbon::parse($date_of_admission)->format('d/m/Y') }} - {{ $tc_data->prev_class ?? '' }}</td>
+            </tr></table>
+        </td>
+    </tr>
+
+    <tr>
+        <td class="fn">8.</td>
+        <td colspan="2" style="padding-top:4px;">
+            <span class="hi">पिछली कक्षा जिसमें विद्यार्थी अध्ययनरत था (अंकों में) :</span> <span class="en">Class in which the pupil last studied (in words) :</span>
+            <table class="inner-tbl"><tr>
+                <td class="inner-val" colspan="2">{{ $class }}</td>
+            </tr></table>
+        </td>
+    </tr>
+
+    <tr>
+        <td class="fn">9.</td>
+        <td colspan="2" style="padding-top:4px;">
+            <span class="hi">पिछले विद्यालय / बोर्ड परीक्षा एवं परिणाम</span> <span class="en">/School / Board Annual examination last taken with result :</span>
+            <table class="inner-tbl"><tr>
+                <td class="inner-val" colspan="2">{{ $board_annaul_exam_taken_result ?? '' }}</td>
+            </tr></table>
+        </td>
+    </tr>
+
+    <tr>
+        <td class="fn">10.</td>
+        <td colspan="2" style="padding-top:4px;">
+            <span class="hi">क्या विद्यार्थी का परीक्षा परिणाम अनुत्तीर्ण है ?</span> <span class="en">Whether the student is failed :</span>
+            <table class="inner-tbl"><tr>
+                <td class="inner-val" colspan="2">{{ $weather_student_failed ?? '' }}</td>
+            </tr></table>
+        </td>
+    </tr>
+
+    <tr>
+        <td class="fn-inline">11.</td>
+        <td class="fl-shrink"><span class="hi">प्रस्तावित विषय</span> <span class="en">/Subjects offered :</span></td>
+        <td class="fv">{{ $subjects_offered ?? '' }}</td>
+    </tr>
+
+    <tr>
+        <td class="fn">12.</td>
+        <td colspan="2" style="padding-top:4px;">
+            <span class="hi">क्या उच्च कक्षा में पदोन्नत का अधिकारी है:</span> <span class="en">Whether qualified for promotion to the next higher class :</span>
+            <table class="inner-tbl"><tr>
+                <td class="inner-val" colspan="2">{{ $weather_qualified_promotion_next_class ?? '' }}</td>
+            </tr></table>
+        </td>
+    </tr>
+
+    <tr>
+        <td class="fn">13.</td>
+        <td colspan="2" style="padding-top:4px;">
+            <span class="hi">क्या विद्यार्थी ने विद्यालय की सभी देय राशि का भुगतान कर दिया है:</span> <span class="en">Whether the pupil has paid all the dues to the Vidyalaya :</span>
+            <table class="inner-tbl"><tr>
+                <td class="inner-val" colspan="2">{{ $paid_all_dues }}</td>
+            </tr></table>
+        </td>
+    </tr>
+
+    <tr>
+        <td class="fn">14.</td>
+        <td colspan="2" style="padding-top:4px;">
+            <span class="hi">क्या विद्यार्थी को कोई शुल्क रियायत प्रदान की गई थी, यदि हां, तो उसकी प्रकृति :</span> <span class="en">Whether the pupil was in receipt of any fee concession, if so the nature of such concession :</span>
+            <table class="inner-tbl"><tr>
+                <td class="inner-val" colspan="2">{{ $weather_pupil_was_in_receipt_fee_concession ?? '' }}</td>
+            </tr></table>
+        </td>
+    </tr>
+
+    <tr>
+        <td class="fn">15.</td>
+        <td colspan="2" style="padding-top:4px;">
+            <span class="hi">क्या विद्यार्थी एन.सी.सी. कैडेट / स्काउट है ? विवरण दें.</span> <span class="en">Whether the pupil is NCC Cadet / Boy Scout / Girl Guide (give details) :</span>
+            <table class="inner-tbl"><tr>
+                <td class="inner-val" colspan="2">{{ $weather_pupil_ncc_boy_scout_girlguide ?? '' }}</td>
+            </tr></table>
+        </td>
+    </tr>
+
+    <tr>
+        <td class="fn">16.</td>
+        <td colspan="2" style="padding-top:4px;">
+            <span class="hi">विद्यालय से विद्यार्थी के नाम काटे जाने की तिथि :</span> <span class="en">Date on which pupil's name was struck off the rolls of the Vidyalaya :</span>
+            <table class="inner-tbl"><tr>
+                <td class="inner-val" colspan="2">{{ $struck_of_school }}</td>
+            </tr></table>
+        </td>
+    </tr>
+
+    <tr>
+        <td class="fn-inline">17.</td>
+        <td class="fl-shrink"><span class="hi">विद्यालय छोड़ने का कारण</span> <span class="en">/Reason for leaving the Vidyalaya :</span></td>
+        <td class="fv">{{ $reason }}</td>
+    </tr>
+
+    <tr>
+        <td class="fn-inline">18.</td>
+        <td class="fl-shrink"><span class="hi">अंतिम तिथि तक उपस्थितियों की कुल संख्या</span> <span class="en">/No. of meetings up to date :</span></td>
+        <td class="fv">{{ $no_meeting_upto_date ?? '' }}</td>
+    </tr>
+
+    <tr>
+        <td class="fn-inline">19.</td>
+        <td class="fl-shrink"><span class="hi">विद्यार्थी की विद्यालय दिवसों की कुल उपस्थितियां</span> <span class="en">/No. of school days the pupil attended :</span></td>
+        <td class="fv">{{ $no_days_pupil_attended ?? '' }}</td>
+    </tr>
+
+    <tr>
+        <td class="fn-inline">20.</td>
+        <td class="fl-shrink"><span class="hi">सामान्य आचरण</span><span class="en">/General conduct :</span></td>
+        <td class="fv">{{ $general_conduct }}</td>
+    </tr>
+
+    <tr>
+        <td class="fn-inline">21.</td>
+        <td class="fl-shrink"><span class="hi">कोई अन्य टिप्पणी</span> <span class="en">/Any other remarks :</span></td>
+        <td class="fv">{{ $any_other_remarks }}</td>
+    </tr>
+
+    <tr>
+        <td class="fn-inline">22.</td>
+        <td class="fl-shrink"><span class="hi">प्रमाण-पत्र जारी करने की तिथि</span> <span class="en">/Date of issue of certificate :</span></td>
+        <td class="fv">{{ \Carbon\Carbon::parse($day_issue_of_certificate)->format('d/m/Y') }}</td>
+    </tr>
+
+    <tr>
+        <td class="fn-inline">23.</td>
+        <td class="fl-shrink"><span class="hi">प्रमाण-पत्र के लिए आवेदन की तिथि</span> <span class="en">/Date of Application for certificate :</span></td>
+        <td class="fv">{{ \Carbon\Carbon::parse($date_of_application_certificate)->format('d/m/Y') }}</td>
+    </tr>
+
+</table>
+
+<table class="sig-table">
+    <tr>
+        <td>
+            <div class="sig-line">
+                <strong>तैयारकर्ता /Prepared by</strong><br>
+                (Name &amp; Designation)
+            </div>
+        </td>
+        <td>
+            <div class="sig-line">
+                <strong>जाँचकर्ता /Checked by</strong><br>
+                (Name &amp; Designation)
+            </div>
+        </td>
+        <td>
+            <div class="sig-line">
+                <strong>ह० प्राचार्य / कार्यालय मोहर</strong><br>
+                Sign. of Principal with Official Seal
+            </div>
+        </td>
+    </tr>
+</table>
+
+<div class="footer-note">
+    <strong>नोट:-</strong> यदि यह स्थानान्तरण पत्र इंचार्ज द्वारा हस्ताक्षरित हो तो प्रबन्धक / अध्यक्ष विद्यालय प्रबन्धन समिति द्वारा प्रति हस्ताक्षरित अवश्य करायें।<br>
+    <strong>Note:-</strong> If, this T.C. is issued by the officiating/Incharge Principal, invariably countersigned by the Manager V.M.C.
+</div>
+
+</div>
+
+</body>
+</html>

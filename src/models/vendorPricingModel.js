@@ -99,6 +99,112 @@ const getAllMaterialPrices = (vendorId) =>
     [vendorId]
   );
 
+// ── Material style pricing (per sq ft, text-only master) ───────
+const getMaterialStylePrice = (vendorId, materialStyleId) =>
+  db.findOne(
+    'SELECT price_per_sqft FROM vendor_material_style_pricing WHERE vendor_id = ? AND material_style_id = ? AND is_active = 1',
+    [vendorId, materialStyleId]
+  );
+
+const upsertMaterialStylePrice = (vendorId, materialStyleId, pricePerSqft) =>
+  db.execute(
+    `INSERT INTO vendor_material_style_pricing (vendor_id, material_style_id, price_per_sqft)
+     VALUES (?, ?, ?)
+     ON DUPLICATE KEY UPDATE price_per_sqft = ?, updated_at = NOW()`,
+    [vendorId, materialStyleId, pricePerSqft, pricePerSqft]
+  );
+
+const getAllMaterialStylePrices = (vendorId) =>
+  db.execute(
+    `SELECT
+      ms.id AS material_style_id,
+      ms.product_type_id,
+      ms.name AS material_style_name,
+      pt.name AS product_type_name,
+      vmsp.price_per_sqft,
+      vmsp.is_active
+     FROM material_styles ms
+     LEFT JOIN product_types pt ON pt.id = ms.product_type_id
+     LEFT JOIN vendor_material_style_pricing vmsp
+       ON vmsp.material_style_id = ms.id
+      AND vmsp.vendor_id = ?
+      AND vmsp.is_active = 1
+     WHERE ms.is_active = 1
+     ORDER BY ms.sort_order ASC, ms.id ASC`,
+    [vendorId]
+  );
+
+// ── Frame pricing (per sq ft, same as materials) ─────────────────
+const getFramePrice = (vendorId, frameId) =>
+  db.findOne(
+    'SELECT price_per_sqft FROM vendor_frame_pricing WHERE vendor_id = ? AND frame_id = ? AND is_active = 1',
+    [vendorId, frameId]
+  );
+
+const upsertFramePrice = (vendorId, frameId, pricePerSqft) =>
+  db.execute(
+    `INSERT INTO vendor_frame_pricing (vendor_id, frame_id, price_per_sqft)
+     VALUES (?, ?, ?)
+     ON DUPLICATE KEY UPDATE price_per_sqft = ?, updated_at = NOW()`,
+    [vendorId, frameId, pricePerSqft, pricePerSqft]
+  );
+
+const getAllFramePrices = (vendorId) =>
+  db.execute(
+    `SELECT
+      fr.id AS frame_id,
+      fr.product_type_id,
+      fr.name AS frame_name,
+      pt.name AS product_type_name,
+      vfp.price_per_sqft,
+      vfp.is_active
+     FROM frames fr
+     LEFT JOIN product_types pt ON pt.id = fr.product_type_id
+     LEFT JOIN vendor_frame_pricing vfp
+       ON vfp.frame_id = fr.id
+      AND vfp.vendor_id = ?
+      AND vfp.is_active = 1
+     WHERE fr.is_active = 1
+     ORDER BY fr.sort_order ASC, fr.id ASC`,
+    [vendorId]
+  );
+
+// ── Wallpaper pricing (per sq ft, same as frames) ───────────────
+const getWallpaperPrice = (vendorId, wallpaperId) =>
+  db.findOne(
+    'SELECT price_per_sqft FROM vendor_wallpaper_pricing WHERE vendor_id = ? AND wallpaper_id = ? AND is_active = 1',
+    [vendorId, wallpaperId]
+  );
+
+const upsertWallpaperPrice = (vendorId, wallpaperId, pricePerSqft) =>
+  db.execute(
+    `INSERT INTO vendor_wallpaper_pricing (vendor_id, wallpaper_id, price_per_sqft)
+     VALUES (?, ?, ?)
+     ON DUPLICATE KEY UPDATE price_per_sqft = ?, updated_at = NOW()`,
+    [vendorId, wallpaperId, pricePerSqft, pricePerSqft]
+  );
+
+const getAllWallpaperPrices = (vendorId) =>
+  db.execute(
+    `SELECT
+      wp.id AS wallpaper_id,
+      wp.product_type_id,
+      wp.name AS wallpaper_name,
+      wp.wallpaper_type,
+      pt.name AS product_type_name,
+      vwp.price_per_sqft,
+      vwp.is_active
+     FROM wallpapers wp
+     LEFT JOIN product_types pt ON pt.id = wp.product_type_id
+     LEFT JOIN vendor_wallpaper_pricing vwp
+       ON vwp.wallpaper_id = wp.id
+      AND vwp.vendor_id = ?
+      AND vwp.is_active = 1
+     WHERE wp.is_active = 1
+     ORDER BY wp.sort_order ASC, wp.id ASC`,
+    [vendorId]
+  );
+
 // ── Element Pricing ──────────────────────────────
 const getElementPrice = (vendorId, elementId) =>
   db.findOne('SELECT price_extra FROM vendor_element_pricing WHERE vendor_id = ? AND element_id = ? AND is_active = 1', [vendorId, elementId]);
@@ -228,6 +334,9 @@ module.exports = {
   getBasePrice, upsertBasePrice, getAllBasePrices,
   getThicknessPrice, upsertThicknessPrice, getAllThicknessPrices,
   getMaterialPrice, upsertMaterialPrice, getAllMaterialPrices,
+  getMaterialStylePrice, upsertMaterialStylePrice, getAllMaterialStylePrices,
+  getFramePrice, upsertFramePrice, getAllFramePrices,
+  getWallpaperPrice, upsertWallpaperPrice, getAllWallpaperPrices,
   getElementPrice,  upsertElementPrice,  getAllElementPrices,
   getColorPrice,    upsertColorPrice,
   getAllFontPrices, upsertFontPrice,

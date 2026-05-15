@@ -30,6 +30,9 @@ const textLayersField = Joi.alternatives()
 const addToCart = Joi.object({
   product_type_id:   Joi.number().integer().positive().required(),
   material_id:       Joi.number().integer().positive().optional().allow(null),
+  material_style_id: Joi.number().integer().positive().optional().allow(null),
+  frame_id:          Joi.number().integer().positive().optional().allow(null),
+  wallpaper_id:      Joi.number().integer().positive().optional().allow(null),
   base_id:           Joi.number().integer().positive().optional().allow(null),
   thickness_id:      Joi.number().integer().positive().optional().allow(null),
   element_id:        Joi.number().integer().positive().optional().allow(null),

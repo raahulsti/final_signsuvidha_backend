@@ -3,6 +3,10 @@ const vendorModel  = require('../../models/vendorModel');
 const illuminationOptionModel = require('../../models/illuminationOptionModel');
 const baseModel    = require('../../models/baseModel');
 const thicknessModel = require('../../models/thicknessModel');
+const materialStyleModel = require('../../models/materialStyleModel');
+const frameModel   = require('../../models/frameModel');
+const wallpaperModel = require('../../models/wallpaperModel');
+const { PRODUCT_SLUGS } = require('../../utils/constants');
 const { getVendorComparison, calculateItemPrice } = require('../../services/pricingService');
 const { success, created, notFound, error } = require('../../utils/response');
 const db = require('../../config/db');
@@ -50,6 +54,27 @@ const toNestedCartItem = (item, pricing = null, adminSellerId = null) => ({
     admin_price_per_sqft: item.admin_price_per_sqft,
     description: nullableDescription(item.material_description),
     file_url: nullableDescription(item.material_file_url),
+  } : null,
+  material_style: item.material_style_id ? {
+    id: item.material_style_id,
+    name: item.material_style_name,
+    admin_price_per_sqft: item.material_style_admin_price_per_sqft,
+    description: nullableDescription(item.material_style_description),
+  } : null,
+  frame: item.frame_id ? {
+    id: item.frame_id,
+    name: item.frame_name,
+    admin_price_per_sqft: item.frame_admin_price_per_sqft,
+    description: nullableDescription(item.frame_description),
+    file_url: nullableDescription(item.frame_file_url),
+  } : null,
+  wallpaper: item.wallpaper_id ? {
+    id: item.wallpaper_id,
+    name: item.wallpaper_name,
+    wallpaper_type: item.wallpaper_type,
+    admin_price_per_sqft: item.wallpaper_admin_price_per_sqft,
+    description: nullableDescription(item.wallpaper_description),
+    file_url: nullableDescription(item.wallpaper_file_url),
   } : null,
   base: item.base_id ? {
     id: item.base_id,
@@ -103,6 +128,12 @@ const toNestedCartItem = (item, pricing = null, adminSellerId = null) => ({
     breakdown: {
       material_price_per_sqft: pricing.price_per_sqft,
       material_cost: pricing.material_cost,
+      material_style_price_per_sqft: pricing.material_style_price_per_sqft,
+      material_style_cost: pricing.material_style_cost,
+      frame_price_per_sqft: pricing.frame_price_per_sqft,
+      frame_cost: pricing.frame_cost,
+      wallpaper_price_per_sqft: pricing.wallpaper_price_per_sqft,
+      wallpaper_cost: pricing.wallpaper_cost,
       base_price_per_sqft: pricing.base_price_per_sqft,
       base_cost: pricing.base_cost,
       thickness_price_per_sqft: pricing.thickness_price_per_sqft,
@@ -190,6 +221,90 @@ const validateIlluminationOptionForProductType = async (illuminationOptionId, pr
   return option;
 };
 
+const validateFrameForProductType = async (frameId, productTypeId) => {
+  if (!frameId) return null;
+  const row = await frameModel.getById(frameId);
+  if (!row || !row.is_active) {
+    const e = new Error('Selected frame not found or inactive');
+    e.statusCode = 400;
+    throw e;
+  }
+  if (String(row.product_type_id) !== String(productTypeId)) {
+    const e = new Error('Selected frame does not belong to this product type');
+    e.statusCode = 400;
+    throw e;
+  }
+  return row;
+};
+
+const validateMaterialStyleForProductType = async (materialStyleId, productTypeId) => {
+  if (!materialStyleId) return null;
+  const row = await materialStyleModel.getById(materialStyleId);
+  if (!row || !row.is_active) {
+    const e = new Error('Selected material style not found or inactive');
+    e.statusCode = 400;
+    throw e;
+  }
+  if (String(row.product_type_id) !== String(productTypeId)) {
+    const e = new Error('Selected material style does not belong to this product type');
+    e.statusCode = 400;
+    throw e;
+  }
+  return row;
+};
+
+/** Wallpaper product: require a material linked to this product type. */
+const validateWallpaperMaterial = async ({ product_type_id, material_id }) => {
+  const pt = await db.findOne('SELECT slug FROM product_types WHERE id = ?', [product_type_id]);
+  if (!pt) {
+    const e = new Error('Invalid product type');
+    e.statusCode = 400;
+    throw e;
+  }
+  if (pt.slug !== PRODUCT_SLUGS.WALLPAPER) return;
+  if (!material_id) {
+    const e = new Error('Select a wallpaper (material) for wallpaper products');
+    e.statusCode = 400;
+    throw e;
+  }
+  const mat = await db.findOne(
+    'SELECT id FROM materials WHERE id = ? AND product_type_id = ? AND is_active = 1',
+    [material_id, product_type_id]
+  );
+  if (!mat) {
+    const e = new Error('Selected wallpaper material not found or does not belong to this product type');
+    e.statusCode = 400;
+    throw e;
+  }
+};
+
+/** Wallpaper product: require a catalog wallpaper row (design) for this product type. */
+const validateWallpaperCatalogRow = async ({ product_type_id, wallpaper_id }) => {
+  const pt = await db.findOne('SELECT slug FROM product_types WHERE id = ?', [product_type_id]);
+  if (!pt) {
+    const e = new Error('Invalid product type');
+    e.statusCode = 400;
+    throw e;
+  }
+  if (pt.slug !== PRODUCT_SLUGS.WALLPAPER) return;
+  if (!wallpaper_id) {
+    const e = new Error('Select a wallpaper design for wallpaper products');
+    e.statusCode = 400;
+    throw e;
+  }
+  const row = await wallpaperModel.getById(wallpaper_id);
+  if (!row || !row.is_active) {
+    const e = new Error('Selected wallpaper design not found or inactive');
+    e.statusCode = 400;
+    throw e;
+  }
+  if (String(row.product_type_id) !== String(product_type_id)) {
+    const e = new Error('Selected wallpaper design does not belong to this product type');
+    e.statusCode = 400;
+    throw e;
+  }
+};
+
 exports.getCart = async (req, res, next) => {
   try {
     return success(res, await buildCartResponse(req.user.id));
@@ -206,6 +321,16 @@ exports.addItem = async (req, res, next) => {
       req.body.illumination_option_id,
       req.body.product_type_id
     );
+    await validateMaterialStyleForProductType(req.body.material_style_id, req.body.product_type_id);
+    await validateFrameForProductType(req.body.frame_id, req.body.product_type_id);
+    await validateWallpaperMaterial({
+      product_type_id: req.body.product_type_id,
+      material_id: req.body.material_id,
+    });
+    await validateWallpaperCatalogRow({
+      product_type_id: req.body.product_type_id,
+      wallpaper_id: req.body.wallpaper_id,
+    });
     await validateBaseForProductType(req.body.base_id, req.body.product_type_id);
     await validateThicknessForProductType(req.body.thickness_id, req.body.product_type_id);
     const result = await cartModel.addItem({ ...req.body, user_id: req.user.id });
@@ -228,6 +353,18 @@ exports.updateItem = async (req, res, next) => {
       req.body.illumination_option_id,
       req.body.product_type_id
     );
+    await validateMaterialStyleForProductType(req.body.material_style_id, req.body.product_type_id);
+    await validateFrameForProductType(req.body.frame_id, req.body.product_type_id);
+    const materialId = req.body.material_id !== undefined ? req.body.material_id : item.material_id;
+    const wallpaperId = req.body.wallpaper_id !== undefined ? req.body.wallpaper_id : item.wallpaper_id;
+    await validateWallpaperMaterial({
+      product_type_id: req.body.product_type_id,
+      material_id: materialId,
+    });
+    await validateWallpaperCatalogRow({
+      product_type_id: req.body.product_type_id,
+      wallpaper_id: wallpaperId,
+    });
     await validateBaseForProductType(req.body.base_id, req.body.product_type_id);
     await validateThicknessForProductType(req.body.thickness_id, req.body.product_type_id);
     await cartModel.updateItem(req.params.id, req.body);
