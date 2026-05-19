@@ -33,6 +33,9 @@ const addToCart = Joi.object({
   material_style_id: Joi.number().integer().positive().optional().allow(null),
   frame_id:          Joi.number().integer().positive().optional().allow(null),
   wallpaper_id:      Joi.number().integer().positive().optional().allow(null),
+  add_border_id:     Joi.number().integer().positive().optional().allow(null),
+  border_is_lit:     Joi.boolean().truthy('true', '1', 1).falsy('false', '0', 0, '').optional(),
+  lollipop_element_id: Joi.number().integer().positive().optional().allow(null),
   base_id:           Joi.number().integer().positive().optional().allow(null),
   thickness_id:      Joi.number().integer().positive().optional().allow(null),
   element_id:        Joi.number().integer().positive().optional().allow(null),
@@ -43,8 +46,8 @@ const addToCart = Joi.object({
   height:            Joi.number().min(0).optional(),
   width:             Joi.number().min(0).optional(),
   dimension_unit_id: Joi.number().integer().positive().optional().allow(null),
-  uploaded_image_url:Joi.string().uri().optional().allow(null, ''),
-  preview_image_url: Joi.string().uri().optional().allow(null, ''),
+  uploaded_image_url: Joi.string().max(2000).optional().allow(null, ''),
+  preview_image_url:  Joi.string().max(2000).optional().allow(null, ''),
   quantity:          Joi.number().integer().min(1).max(100).optional(),
 });
 

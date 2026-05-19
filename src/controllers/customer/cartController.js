@@ -6,7 +6,9 @@ const thicknessModel = require('../../models/thicknessModel');
 const materialStyleModel = require('../../models/materialStyleModel');
 const frameModel   = require('../../models/frameModel');
 const wallpaperModel = require('../../models/wallpaperModel');
-const { PRODUCT_SLUGS } = require('../../utils/constants');
+const { PRODUCT_SLUGS, LOLLIPOP_PRODUCT_TYPE_ID } = require('../../utils/constants');
+const addBorderModel = require('../../models/addBorderModel');
+const lollipopElementModel = require('../../models/lollipopElementModel');
 const { getVendorComparison, calculateItemPrice } = require('../../services/pricingService');
 const { success, created, notFound, error } = require('../../utils/response');
 const db = require('../../config/db');
@@ -76,6 +78,25 @@ const toNestedCartItem = (item, pricing = null, adminSellerId = null) => ({
     description: nullableDescription(item.wallpaper_description),
     file_url: nullableDescription(item.wallpaper_file_url),
   } : null,
+  add_border: item.add_border_id ? {
+    id: item.add_border_id,
+    shape: item.add_border_shape,
+    size: item.add_border_size,
+    name: item.add_border_name,
+    border_is_lit: Boolean(item.border_is_lit),
+    admin_price: item.add_border_admin_price,
+    lit_price: item.add_border_lit_price,
+    description: nullableDescription(item.add_border_description),
+    file_url: nullableDescription(item.add_border_file_url),
+  } : null,
+  lollipop_element: item.lollipop_element_id ? {
+    id: item.lollipop_element_id,
+    shape: item.lollipop_element_shape,
+    name: item.lollipop_element_name,
+    admin_price: item.lollipop_element_admin_price,
+    description: nullableDescription(item.lollipop_element_description),
+    file_url: nullableDescription(item.lollipop_element_file_url),
+  } : null,
   base: item.base_id ? {
     id: item.base_id,
     name: item.base_name,
@@ -134,6 +155,10 @@ const toNestedCartItem = (item, pricing = null, adminSellerId = null) => ({
       frame_cost: pricing.frame_cost,
       wallpaper_price_per_sqft: pricing.wallpaper_price_per_sqft,
       wallpaper_cost: pricing.wallpaper_cost,
+      add_border_base_price: pricing.add_border_base_price,
+      add_border_lit_extra: pricing.add_border_lit_extra,
+      add_border_cost: pricing.add_border_cost,
+      lollipop_element_cost: pricing.lollipop_element_cost,
       base_price_per_sqft: pricing.base_price_per_sqft,
       base_cost: pricing.base_cost,
       thickness_price_per_sqft: pricing.thickness_price_per_sqft,
@@ -253,6 +278,46 @@ const validateMaterialStyleForProductType = async (materialStyleId, productTypeI
   return row;
 };
 
+const isLollipopProductType = (productTypeId, slug) =>
+  String(productTypeId) === String(LOLLIPOP_PRODUCT_TYPE_ID) || slug === PRODUCT_SLUGS.LOLLIPOP_SIGN;
+
+/** Lollipop: border required; element only after border; no dimension unit required. */
+const validateLollipopCart = async ({ product_type_id, add_border_id, border_is_lit, lollipop_element_id }) => {
+  const pt = await db.findOne('SELECT slug FROM product_types WHERE id = ?', [product_type_id]);
+  if (!pt || !isLollipopProductType(product_type_id, pt.slug)) return;
+
+  if (!add_border_id) {
+    const e = new Error('Select add border (shape and size) for lollipop sign');
+    e.statusCode = 400;
+    throw e;
+  }
+  const border = await addBorderModel.getById(add_border_id);
+  if (!border || !border.is_active) {
+    const e = new Error('Selected add border not found or inactive');
+    e.statusCode = 400;
+    throw e;
+  }
+  if (String(border.product_type_id) !== String(product_type_id)) {
+    const e = new Error('Selected add border does not belong to this product type');
+    e.statusCode = 400;
+    throw e;
+  }
+
+  if (lollipop_element_id) {
+    const el = await lollipopElementModel.getById(lollipop_element_id);
+    if (!el || !el.is_active) {
+      const e = new Error('Selected lollipop element not found or inactive');
+      e.statusCode = 400;
+      throw e;
+    }
+    if (String(el.product_type_id) !== String(product_type_id)) {
+      const e = new Error('Selected lollipop element does not belong to this product type');
+      e.statusCode = 400;
+      throw e;
+    }
+  }
+};
+
 /** Wallpaper product: require material style (Plain / Woven / Textured), not materials table. */
 const validateWallpaperMaterialStyle = async ({ product_type_id, material_style_id }) => {
   const pt = await db.findOne('SELECT slug FROM product_types WHERE id = ?', [product_type_id]);
@@ -306,25 +371,34 @@ exports.getCart = async (req, res, next) => {
 exports.addItem = async (req, res, next) => {
   try {
     sanitizeOptionalImageFields(req.body);
-    if (req.file?.location) {
-      req.body.uploaded_image_url = req.file.location;
+    const ptRow = await db.findOne('SELECT slug FROM product_types WHERE id = ?', [req.body.product_type_id]);
+    const isLollipop = isLollipopProductType(req.body.product_type_id, ptRow?.slug);
+
+    if (isLollipop) {
+      await validateLollipopCart({
+        product_type_id: req.body.product_type_id,
+        add_border_id: req.body.add_border_id,
+        border_is_lit: req.body.border_is_lit,
+        lollipop_element_id: req.body.lollipop_element_id,
+      });
+    } else {
+      await validateIlluminationOptionForProductType(
+        req.body.illumination_option_id,
+        req.body.product_type_id
+      );
+      await validateFrameForProductType(req.body.frame_id, req.body.product_type_id);
+      await validateWallpaperMaterialStyle({
+        product_type_id: req.body.product_type_id,
+        material_style_id: req.body.material_style_id,
+      });
+      await validateMaterialStyleForProductType(req.body.material_style_id, req.body.product_type_id);
+      await validateWallpaperCatalogRow({
+        product_type_id: req.body.product_type_id,
+        wallpaper_id: req.body.wallpaper_id,
+      });
+      await validateBaseForProductType(req.body.base_id, req.body.product_type_id);
+      await validateThicknessForProductType(req.body.thickness_id, req.body.product_type_id);
     }
-    await validateIlluminationOptionForProductType(
-      req.body.illumination_option_id,
-      req.body.product_type_id
-    );
-    await validateFrameForProductType(req.body.frame_id, req.body.product_type_id);
-    await validateWallpaperMaterialStyle({
-      product_type_id: req.body.product_type_id,
-      material_style_id: req.body.material_style_id,
-    });
-    await validateMaterialStyleForProductType(req.body.material_style_id, req.body.product_type_id);
-    await validateWallpaperCatalogRow({
-      product_type_id: req.body.product_type_id,
-      wallpaper_id: req.body.wallpaper_id,
-    });
-    await validateBaseForProductType(req.body.base_id, req.body.product_type_id);
-    await validateThicknessForProductType(req.body.thickness_id, req.body.product_type_id);
     const result = await cartModel.addItem({ ...req.body, user_id: req.user.id });
     return created(res, { id: result.insertId }, 'Item added to cart');
   } catch (err) { next(err); }
@@ -333,32 +407,46 @@ exports.addItem = async (req, res, next) => {
 exports.updateItem = async (req, res, next) => {
   try {
     sanitizeOptionalImageFields(req.body);
-    if (req.file?.location) {
-      req.body.uploaded_image_url = req.file.location;
-    }
     const item = await cartModel.getItemById(req.params.id, req.user.id);
     if (!item) return notFound(res, 'Cart item not found');
     if (!req.body.product_type_id) {
       return error(res, 'product_type_id is required while updating cart item', 400);
     }
-    await validateIlluminationOptionForProductType(
-      req.body.illumination_option_id,
-      req.body.product_type_id
-    );
-    await validateFrameForProductType(req.body.frame_id, req.body.product_type_id);
-    const materialStyleId = req.body.material_style_id !== undefined ? req.body.material_style_id : item.material_style_id;
-    const wallpaperId = req.body.wallpaper_id !== undefined ? req.body.wallpaper_id : item.wallpaper_id;
-    await validateWallpaperMaterialStyle({
-      product_type_id: req.body.product_type_id,
-      material_style_id: materialStyleId,
-    });
-    await validateMaterialStyleForProductType(req.body.material_style_id, req.body.product_type_id);
-    await validateWallpaperCatalogRow({
-      product_type_id: req.body.product_type_id,
-      wallpaper_id: wallpaperId,
-    });
-    await validateBaseForProductType(req.body.base_id, req.body.product_type_id);
-    await validateThicknessForProductType(req.body.thickness_id, req.body.product_type_id);
+    const ptRow = await db.findOne('SELECT slug FROM product_types WHERE id = ?', [req.body.product_type_id]);
+    const isLollipop = isLollipopProductType(req.body.product_type_id, ptRow?.slug);
+
+    if (isLollipop) {
+      const addBorderId = req.body.add_border_id !== undefined ? req.body.add_border_id : item.add_border_id;
+      const lollipopElementId = req.body.lollipop_element_id !== undefined
+        ? req.body.lollipop_element_id
+        : item.lollipop_element_id;
+      const borderIsLit = req.body.border_is_lit !== undefined ? req.body.border_is_lit : item.border_is_lit;
+      await validateLollipopCart({
+        product_type_id: req.body.product_type_id,
+        add_border_id: addBorderId,
+        border_is_lit: borderIsLit,
+        lollipop_element_id: lollipopElementId,
+      });
+    } else {
+      await validateIlluminationOptionForProductType(
+        req.body.illumination_option_id,
+        req.body.product_type_id
+      );
+      await validateFrameForProductType(req.body.frame_id, req.body.product_type_id);
+      const materialStyleId = req.body.material_style_id !== undefined ? req.body.material_style_id : item.material_style_id;
+      const wallpaperId = req.body.wallpaper_id !== undefined ? req.body.wallpaper_id : item.wallpaper_id;
+      await validateWallpaperMaterialStyle({
+        product_type_id: req.body.product_type_id,
+        material_style_id: materialStyleId,
+      });
+      await validateMaterialStyleForProductType(req.body.material_style_id, req.body.product_type_id);
+      await validateWallpaperCatalogRow({
+        product_type_id: req.body.product_type_id,
+        wallpaper_id: wallpaperId,
+      });
+      await validateBaseForProductType(req.body.base_id, req.body.product_type_id);
+      await validateThicknessForProductType(req.body.thickness_id, req.body.product_type_id);
+    }
     await cartModel.updateItem(req.params.id, req.body);
     return success(res, {}, 'Cart item updated');
   } catch (err) { next(err); }

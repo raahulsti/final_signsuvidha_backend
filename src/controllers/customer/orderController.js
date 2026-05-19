@@ -9,6 +9,11 @@ const { createOrder, verifySignature } = require('../../services/razorpayService
 const { success, created, notFound, error, paginated } = require('../../utils/response');
 const { getPagination, getPaginationMeta } = require('../../utils/helpers');
 const { nextSellerSerials, saveInvoiceNumber } = require('../../services/orderNumberService');
+const { LOLLIPOP_PRODUCT_TYPE_ID, PRODUCT_SLUGS } = require('../../utils/constants');
+
+const isLollipopOrderItem = (item) =>
+  String(item.product_type_id) === String(LOLLIPOP_PRODUCT_TYPE_ID)
+  || item.product_type_slug === PRODUCT_SLUGS.LOLLIPOP_SIGN;
 
 const getAdminSellerId = async () => {
   const admin = await db.findOne(
@@ -280,6 +285,13 @@ exports.checkout = async (req, res, next) => {
             material_style_id: item.material_style_id,
             frame_id: item.frame_id,
             wallpaper_id: item.wallpaper_id,
+            add_border_id: item.add_border_id,
+            border_is_lit: item.border_is_lit,
+            lollipop_element_id: item.lollipop_element_id,
+            add_border_base_price: item.add_border_base_price,
+            add_border_lit_extra: item.add_border_lit_extra,
+            add_border_cost: item.add_border_cost,
+            lollipop_element_cost: item.lollipop_element_cost,
             base_id: item.base_id,
             thickness_id: item.thickness_id,
             element_id: item.element_id,
@@ -287,9 +299,9 @@ exports.checkout = async (req, res, next) => {
             font_id: item.font_id,
             illumination_option_id: item.illumination_option_id,
             text_layers: item.text_layers,
-            height: item.height,
-            width: item.width,
-            dimension_unit_id: item.dimension_unit_id,
+            height: isLollipopOrderItem(item) ? 0 : (item.height || 0),
+            width: isLollipopOrderItem(item) ? 0 : (item.width || 0),
+            dimension_unit_id: isLollipopOrderItem(item) ? null : (item.dimension_unit_id || null),
             uploaded_image_url: item.uploaded_image_url,
             price_per_sqft: item.price_per_sqft,
             material_cost: item.material_cost,

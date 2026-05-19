@@ -35,6 +35,12 @@ const getCartByUser = (userId) =>
             wp.name   AS wallpaper_name,     wp.admin_price_per_sqft AS wallpaper_admin_price_per_sqft,
             wp.wallpaper_type AS wallpaper_type,
             wp.description AS wallpaper_description, wp.file_url AS wallpaper_file_url,
+            ab.shape AS add_border_shape, ab.size AS add_border_size, ab.name AS add_border_name,
+            ab.admin_price AS add_border_admin_price, ab.lit_price AS add_border_lit_price,
+            ab.description AS add_border_description, ab.file_url AS add_border_file_url,
+            le.shape AS lollipop_element_shape, le.name AS lollipop_element_name,
+            le.admin_price AS lollipop_element_admin_price,
+            le.description AS lollipop_element_description, le.file_url AS lollipop_element_file_url,
             b.name    AS base_name,         b.admin_price_per_sqft AS base_admin_price_per_sqft, b.description AS base_description,
             b.file_url AS base_file_url,
             th.name   AS thickness_name,    th.admin_price_per_sqft AS thickness_admin_price_per_sqft, th.description AS thickness_description,
@@ -54,6 +60,8 @@ const getCartByUser = (userId) =>
      LEFT JOIN material_styles ms ON ms.id = ci.material_style_id
      LEFT JOIN frames          fr ON fr.id = ci.frame_id
      LEFT JOIN wallpapers      wp ON wp.id = ci.wallpaper_id
+     LEFT JOIN add_borders     ab ON ab.id = ci.add_border_id
+     LEFT JOIN lollipop_elements le ON le.id = ci.lollipop_element_id
      LEFT JOIN bases              b ON b.id  = ci.base_id
      LEFT JOIN thicknesses       th ON th.id = ci.thickness_id
      LEFT JOIN elements         e ON e.id  = ci.element_id
@@ -70,16 +78,22 @@ const getCartByUser = (userId) =>
 const getItemById = (id, userId) =>
   db.findOne('SELECT * FROM cart_items WHERE id = ? AND user_id = ?', [id, userId]).then(normalizeCartRow);
 
-const addItem = ({ user_id, product_type_id, material_id, material_style_id, frame_id, wallpaper_id, base_id, thickness_id, element_id, color_id, font_id,
+const addItem = ({ user_id, product_type_id, material_id, material_style_id, frame_id, wallpaper_id,
+                   add_border_id, border_is_lit, lollipop_element_id,
+                   base_id, thickness_id, element_id, color_id, font_id,
                    illumination_option_id, text_layers, height, width, dimension_unit_id,
                    uploaded_image_url, preview_image_url, quantity }) =>
   db.execute(
     `INSERT INTO cart_items
-       (user_id, product_type_id, material_id, material_style_id, frame_id, wallpaper_id, base_id, thickness_id, element_id, color_id, font_id,
+       (user_id, product_type_id, material_id, material_style_id, frame_id, wallpaper_id,
+        add_border_id, border_is_lit, lollipop_element_id,
+        base_id, thickness_id, element_id, color_id, font_id,
         illumination_option_id, text_layers, height, width, dimension_unit_id,
         uploaded_image_url, preview_image_url, quantity)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [user_id, product_type_id, material_id || null, material_style_id || null, frame_id || null, wallpaper_id || null, base_id || null, thickness_id || null, element_id || null,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [user_id, product_type_id, material_id || null, material_style_id || null, frame_id || null, wallpaper_id || null,
+     add_border_id || null, border_is_lit ? 1 : 0, lollipop_element_id || null,
+     base_id || null, thickness_id || null, element_id || null,
      color_id || null, font_id || null, illumination_option_id || null,
      text_layers ? JSON.stringify(text_layers) : null,
      height || 0, width || 0, dimension_unit_id || null,
@@ -87,14 +101,18 @@ const addItem = ({ user_id, product_type_id, material_id, material_style_id, fra
   );
 
 const updateItem = (id, fields) => {
-  const allowed = ['material_id','material_style_id','frame_id','wallpaper_id','base_id','thickness_id','element_id','color_id','font_id','illumination_option_id',
+  const allowed = ['material_id','material_style_id','frame_id','wallpaper_id','add_border_id','border_is_lit','lollipop_element_id',
+                   'base_id','thickness_id','element_id','color_id','font_id','illumination_option_id',
                    'text_layers','height','width','dimension_unit_id','quantity',
                    'uploaded_image_url','preview_image_url','vendor_id'];
   const sets = []; const values = [];
   allowed.forEach((k) => {
     if (fields[k] !== undefined) {
       sets.push(`${k} = ?`);
-      values.push(k === 'text_layers' && fields[k] ? JSON.stringify(fields[k]) : fields[k]);
+      let v = fields[k];
+      if (k === 'text_layers' && v) v = JSON.stringify(v);
+      if (k === 'border_is_lit') v = v ? 1 : 0;
+      values.push(v);
     }
   });
   if (!sets.length) return Promise.resolve(null);

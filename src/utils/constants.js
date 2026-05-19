@@ -8,6 +8,13 @@ module.exports = {
   /** Wallpaper catalog tier (stored on `wallpapers.wallpaper_type`; not a separate master table). */
   WALLPAPER_TYPES: ['regular', 'premium', 'prestige'],
 
+  /** Fixed product_type.id for lollipop_sign in this project. */
+  LOLLIPOP_PRODUCT_TYPE_ID: 6,
+
+  BORDER_SHAPES: ['circle', 'oval', 'square'],
+  BORDER_SIZES: ['small', 'medium', 'large'],
+  LOLLIPOP_ELEMENT_SHAPES: ['circle', 'oval', 'square'],
+
   PRODUCT_SLUGS: {
     SIGNAGE_3D:    '3d_signage',
     NAME_PLATE:    'name_plate',
@@ -49,5 +56,7 @@ module.exports = {
     ILLUMINATION:    'illumination',
     FRAMES:          'frames',
     WALLPAPERS:      'wallpapers',
+    ADD_BORDERS:     'add-borders',
+    LOLLIPOP_ELEMENTS: 'lollipop-elements',
   },
 };

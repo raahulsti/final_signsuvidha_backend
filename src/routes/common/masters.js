@@ -6,6 +6,8 @@ router.get('/materials',          ctrl.getMaterials);
 router.get('/material-styles',    ctrl.getMaterialStyles);
 router.get('/frames',             ctrl.getFrames);
 router.get('/wallpapers',         ctrl.getWallpapers);
+router.get('/add-borders',        ctrl.getAddBorders);
+router.get('/lollipop-elements',  ctrl.getLollipopElements);
 router.get('/bases',              ctrl.getBases);
 router.get('/thicknesses',       ctrl.getThicknesses);
 router.get('/elements',           ctrl.getElements);

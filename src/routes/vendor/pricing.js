@@ -16,6 +16,12 @@ router.put('/frames/:frameId',                  validate(v.framePrice),        c
 router.get('/wallpapers',                       ctrl.getAllWallpaperPrices);
 router.put('/wallpapers/:wallpaperId',          validate(v.wallpaperPrice),    ctrl.upsertWallpaperPrice);
 
+router.get('/add-borders',                      ctrl.getAllAddBorderPrices);
+router.put('/add-borders/:addBorderId',         validate(v.addBorderPrice),    ctrl.upsertAddBorderPrice);
+
+router.get('/lollipop-elements',                ctrl.getAllLollipopElementPrices);
+router.put('/lollipop-elements/:lollipopElementId', validate(v.lollipopElementPrice), ctrl.upsertLollipopElementPrice);
+
 // Base pricing (physical base, per sq ft)
 router.get('/bases',                            ctrl.getAllBasePrices);
 router.put('/bases/:baseId',                    validate(v.basePrice),         ctrl.upsertBasePrice);

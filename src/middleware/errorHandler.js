@@ -1,8 +1,16 @@
 const logger = require('../utils/logger');
+const { MulterError } = require('multer');
 
 // eslint-disable-next-line no-unused-vars
 const errorHandler = (err, req, res, next) => {
   logger.error(`${err.message}\n${err.stack}`);
+
+  if (err instanceof MulterError) {
+    const hint = err.code === 'LIMIT_UNEXPECTED_FILE'
+      ? `File field "${err.field}" is not allowed. Use "image" or "preview_image" for uploads.`
+      : err.message;
+    return res.status(200).json({ success: false, message: hint, error_code: 400 });
+  }
 
   // MySQL duplicate entry
   if (err.code === 'ER_DUP_ENTRY') {

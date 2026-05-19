@@ -4,6 +4,8 @@ const materialModel   = require('../../models/materialModel');
 const materialStyleModel = require('../../models/materialStyleModel');
 const frameModel = require('../../models/frameModel');
 const wallpaperModel = require('../../models/wallpaperModel');
+const addBorderModel = require('../../models/addBorderModel');
+const lollipopElementModel = require('../../models/lollipopElementModel');
 const baseModel       = require('../../models/baseModel');
 const thicknessModel  = require('../../models/thicknessModel');
 const elementModel    = require('../../models/elementModel');
@@ -49,6 +51,32 @@ exports.getFrames = async (req, res, next) => {
   try {
     const { product_type_id } = req.query;
     const { rows } = await frameModel.getAll({ productTypeId: product_type_id, isActive: true, offset: 0, limit: 1000 });
+    return success(res, rows);
+  } catch (e) { next(e); }
+};
+
+exports.getAddBorders = async (req, res, next) => {
+  try {
+    const { product_type_id } = req.query;
+    const { rows } = await addBorderModel.getAll({
+      productTypeId: product_type_id,
+      isActive: true,
+      offset: 0,
+      limit: 500,
+    });
+    return success(res, rows);
+  } catch (e) { next(e); }
+};
+
+exports.getLollipopElements = async (req, res, next) => {
+  try {
+    const { product_type_id } = req.query;
+    const { rows } = await lollipopElementModel.getAll({
+      productTypeId: product_type_id,
+      isActive: true,
+      offset: 0,
+      limit: 100,
+    });
     return success(res, rows);
   } catch (e) { next(e); }
 };

@@ -75,6 +75,37 @@ exports.upsertWallpaperPrice = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+exports.getAllAddBorderPrices = async (req, res, next) => {
+  try {
+    const vendorId = await getVendorId(req.user.id);
+    return success(res, await vendorPricingModel.getAllAddBorderPrices(vendorId));
+  } catch (err) { next(err); }
+};
+
+exports.upsertAddBorderPrice = async (req, res, next) => {
+  try {
+    const vendorId = await getVendorId(req.user.id);
+    const { price, lit_price } = req.body;
+    await vendorPricingModel.upsertAddBorderPrice(vendorId, req.params.addBorderId, price, lit_price);
+    return success(res, {}, 'Add border price updated');
+  } catch (err) { next(err); }
+};
+
+exports.getAllLollipopElementPrices = async (req, res, next) => {
+  try {
+    const vendorId = await getVendorId(req.user.id);
+    return success(res, await vendorPricingModel.getAllLollipopElementPrices(vendorId));
+  } catch (err) { next(err); }
+};
+
+exports.upsertLollipopElementPrice = async (req, res, next) => {
+  try {
+    const vendorId = await getVendorId(req.user.id);
+    await vendorPricingModel.upsertLollipopElementPrice(vendorId, req.params.lollipopElementId, req.body.price);
+    return success(res, {}, 'Lollipop element price updated');
+  } catch (err) { next(err); }
+};
+
 exports.getAllBasePrices = async (req, res, next) => {
   try {
     const vendorId = await getVendorId(req.user.id);

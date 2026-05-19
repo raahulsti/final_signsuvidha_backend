@@ -19,35 +19,51 @@ const create = async (conn, { customer_user_id, vendor_id, order_number, shippin
 };
 
 const createItem = (conn, item) => {
-  const { order_id, product_type_id, material_id, material_style_id, frame_id, wallpaper_id, base_id, thickness_id, element_id, color_id, font_id,
-          illumination_option_id, text_layers, height, width, dimension_unit_id,
-          uploaded_image_url, price_per_sqft, material_cost, material_style_price_per_sqft, material_style_cost,
-          frame_price_per_sqft, frame_cost,
-          wallpaper_price_per_sqft, wallpaper_cost,
-          base_price_per_sqft, base_cost,
-          thickness_price_per_sqft, thickness_cost,
-          element_cost, color_extra, illumination_cost, unit_price, quantity, total_price, preview_image_url } = item;
+  const {
+    order_id, product_type_id, material_id, material_style_id, frame_id, wallpaper_id,
+    add_border_id, border_is_lit,
+    lollipop_element_id,
+    base_id, thickness_id, element_id, color_id, font_id,
+    illumination_option_id, text_layers, height, width, dimension_unit_id,
+    uploaded_image_url, price_per_sqft, material_cost, material_style_price_per_sqft, material_style_cost,
+    frame_price_per_sqft, frame_cost,
+    wallpaper_price_per_sqft, wallpaper_cost,
+    add_border_base_price, add_border_lit_extra, add_border_cost,
+    lollipop_element_cost,
+    base_price_per_sqft, base_cost,
+    thickness_price_per_sqft, thickness_cost,
+    element_cost, color_extra, illumination_cost, unit_price, quantity, total_price, preview_image_url,
+  } = item;
   return conn.execute(
     `INSERT INTO order_items
-       (order_id, product_type_id, material_id, material_style_id, frame_id, wallpaper_id, base_id, thickness_id, element_id, color_id, font_id,
+       (order_id, product_type_id, material_id, material_style_id, frame_id, wallpaper_id,
+        add_border_id, border_is_lit, lollipop_element_id,
+        base_id, thickness_id, element_id, color_id, font_id,
         illumination_option_id, text_layers, height, width, dimension_unit_id, uploaded_image_url,
-        price_per_sqft, material_cost, material_style_price_per_sqft, material_style_cost, frame_price_per_sqft, frame_cost,
-        wallpaper_price_per_sqft, wallpaper_cost,
+        price_per_sqft, material_cost, material_style_price_per_sqft, material_style_cost,
+        frame_price_per_sqft, frame_cost, wallpaper_price_per_sqft, wallpaper_cost,
+        add_border_base_price, add_border_lit_extra, add_border_cost, lollipop_element_cost,
         base_price_per_sqft, base_cost, thickness_price_per_sqft, thickness_cost,
         element_cost, color_extra, illumination_cost,
         unit_price, quantity, total_price, preview_image_url)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [order_id, product_type_id, material_id || null, material_style_id || null, frame_id || null, wallpaper_id || null, base_id || null, thickness_id || null, element_id || null,
-     color_id || null, font_id || null, illumination_option_id || null,
-     text_layers ? JSON.stringify(text_layers) : null,
-     height, width, dimension_unit_id, uploaded_image_url || null,
-     price_per_sqft, material_cost, material_style_price_per_sqft ?? 0, material_style_cost ?? 0,
-     frame_price_per_sqft ?? 0, frame_cost ?? 0,
-     wallpaper_price_per_sqft ?? 0, wallpaper_cost ?? 0,
-     base_price_per_sqft ?? 0, base_cost ?? 0,
-     thickness_price_per_sqft ?? 0, thickness_cost ?? 0,
-     element_cost, color_extra, illumination_cost ?? 0,
-     unit_price, quantity, total_price, preview_image_url || null]
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      order_id, product_type_id, material_id || null, material_style_id || null, frame_id || null, wallpaper_id || null,
+      add_border_id || null, border_is_lit ? 1 : 0, lollipop_element_id || null,
+      base_id || null, thickness_id || null, element_id || null, color_id || null, font_id || null,
+      illumination_option_id || null,
+      text_layers ? JSON.stringify(text_layers) : null,
+      height ?? 0, width ?? 0, dimension_unit_id || null, uploaded_image_url || null,
+      price_per_sqft, material_cost, material_style_price_per_sqft ?? 0, material_style_cost ?? 0,
+      frame_price_per_sqft ?? 0, frame_cost ?? 0,
+      wallpaper_price_per_sqft ?? 0, wallpaper_cost ?? 0,
+      add_border_base_price ?? 0, add_border_lit_extra ?? 0, add_border_cost ?? 0,
+      lollipop_element_cost ?? 0,
+      base_price_per_sqft ?? 0, base_cost ?? 0,
+      thickness_price_per_sqft ?? 0, thickness_cost ?? 0,
+      element_cost, color_extra, illumination_cost ?? 0,
+      unit_price, quantity, total_price, preview_image_url || null,
+    ]
   );
 };
 
@@ -102,15 +118,9 @@ const updateOrderNumber = (id, orderNumber) =>
     [orderNumber, id]
   );
 
-const updatePaymentBatchId = (conn, id, paymentBatchId) =>
-  conn.execute(
-    'UPDATE orders SET payment_batch_id = ?, updated_at = NOW() WHERE id = ?',
-    [paymentBatchId, id]
-  );
+const updatePaymentBatchId = (conn, orderId, paymentBatchId) =>
+  conn.execute('UPDATE orders SET payment_batch_id = ?, updated_at = NOW() WHERE id = ?', [paymentBatchId, orderId]);
 
-module.exports = { create, createItem, getByCustomer, getById, getOrderItems, updateStatus, updatePayment, updateOrderNumber, updatePaymentBatchId };
-
-// Admin: get all orders
 const getAll = ({ status, vendorId, offset, limit }) => {
   const conds = []; const vals = [];
   if (status)   { conds.push('o.status = ?');    vals.push(status); }
@@ -129,7 +139,6 @@ const getAll = ({ status, vendorId, offset, limit }) => {
     [...vals, limit, offset], vals);
 };
 
-// Vendor: get orders assigned to vendor
 const getByVendor = ({ vendorId, status, offset, limit }) => {
   const conds = ['o.vendor_id = ?']; const vals = [vendorId];
   if (status) { conds.push('o.status = ?'); vals.push(status); }
@@ -144,4 +153,7 @@ const getByVendor = ({ vendorId, status, offset, limit }) => {
     [...vals, limit, offset], vals);
 };
 
-module.exports = Object.assign(module.exports, { getAll, getByVendor });
+module.exports = {
+  create, createItem, getByCustomer, getById, getOrderItems, updateStatus, updatePayment, updateOrderNumber, updatePaymentBatchId,
+  getAll, getByVendor,
+};

@@ -330,6 +330,74 @@ const getAllIlluminationPrices = (vendorId, productTypeId) => {
   );
 };
 
+// ── Add Border (flat + lit add-on) ───────────────────────────────
+const getAddBorderPrice = (vendorId, addBorderId) =>
+  db.findOne(
+    'SELECT price, lit_price FROM vendor_add_border_pricing WHERE vendor_id = ? AND add_border_id = ? AND is_active = 1',
+    [vendorId, addBorderId]
+  );
+
+const upsertAddBorderPrice = (vendorId, addBorderId, price, litPrice) =>
+  db.execute(
+    `INSERT INTO vendor_add_border_pricing (vendor_id, add_border_id, price, lit_price)
+     VALUES (?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE price = ?, lit_price = ?, updated_at = NOW()`,
+    [vendorId, addBorderId, price, litPrice, price, litPrice]
+  );
+
+const getAllAddBorderPrices = (vendorId) =>
+  db.execute(
+    `SELECT
+      ab.id AS add_border_id,
+      ab.product_type_id,
+      ab.shape,
+      ab.size,
+      ab.name AS add_border_name,
+      pt.name AS product_type_name,
+      vab.price,
+      vab.lit_price
+     FROM add_borders ab
+     LEFT JOIN product_types pt ON pt.id = ab.product_type_id
+     LEFT JOIN vendor_add_border_pricing vab
+       ON vab.add_border_id = ab.id AND vab.vendor_id = ? AND vab.is_active = 1
+     WHERE ab.is_active = 1
+     ORDER BY ab.sort_order ASC, ab.shape ASC, ab.size ASC`,
+    [vendorId]
+  );
+
+// ── Lollipop element (flat) ────────────────────────────────────
+const getLollipopElementPrice = (vendorId, lollipopElementId) =>
+  db.findOne(
+    'SELECT price FROM vendor_lollipop_element_pricing WHERE vendor_id = ? AND lollipop_element_id = ? AND is_active = 1',
+    [vendorId, lollipopElementId]
+  );
+
+const upsertLollipopElementPrice = (vendorId, lollipopElementId, price) =>
+  db.execute(
+    `INSERT INTO vendor_lollipop_element_pricing (vendor_id, lollipop_element_id, price)
+     VALUES (?, ?, ?)
+     ON DUPLICATE KEY UPDATE price = ?, updated_at = NOW()`,
+    [vendorId, lollipopElementId, price, price]
+  );
+
+const getAllLollipopElementPrices = (vendorId) =>
+  db.execute(
+    `SELECT
+      le.id AS lollipop_element_id,
+      le.product_type_id,
+      le.shape,
+      le.name AS lollipop_element_name,
+      pt.name AS product_type_name,
+      vle.price
+     FROM lollipop_elements le
+     LEFT JOIN product_types pt ON pt.id = le.product_type_id
+     LEFT JOIN vendor_lollipop_element_pricing vle
+       ON vle.lollipop_element_id = le.id AND vle.vendor_id = ? AND vle.is_active = 1
+     WHERE le.is_active = 1
+     ORDER BY le.sort_order ASC, le.shape ASC`,
+    [vendorId]
+  );
+
 module.exports = {
   getBasePrice, upsertBasePrice, getAllBasePrices,
   getThicknessPrice, upsertThicknessPrice, getAllThicknessPrices,
@@ -341,4 +409,6 @@ module.exports = {
   getColorPrice,    upsertColorPrice,
   getAllFontPrices, upsertFontPrice,
   getIlluminationPrice, upsertIlluminationPrice, getAllIlluminationPrices,
+  getAddBorderPrice, upsertAddBorderPrice, getAllAddBorderPrices,
+  getLollipopElementPrice, upsertLollipopElementPrice, getAllLollipopElementPrices,
 };

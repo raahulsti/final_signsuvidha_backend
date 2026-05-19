@@ -1,6 +1,105 @@
 const db = require('../config/db');
 const vendorPricingModel = require('../models/vendorPricingModel');
 const vendorModel = require('../models/vendorModel');
+const { LOLLIPOP_PRODUCT_TYPE_ID, PRODUCT_SLUGS } = require('../utils/constants');
+
+const isLollipopItem = (item) =>
+  String(item.product_type_id) === String(LOLLIPOP_PRODUCT_TYPE_ID)
+  || item.product_type_slug === PRODUCT_SLUGS.LOLLIPOP_SIGN;
+
+const isTruthyLit = (v) => v === true || v === 1 || v === '1' || String(v).toLowerCase() === 'true';
+
+/** Lollipop sign: fixed border + optional element + color (no area / dimension pricing). */
+const calculateLollipopSignPrice = async (item, vendorId = null) => {
+  const {
+    add_border_id,
+    border_is_lit,
+    lollipop_element_id,
+    color_id,
+    quantity = 1,
+  } = item;
+
+  let addBorderBasePrice = 0;
+  let addBorderLitExtra = 0;
+  if (add_border_id) {
+    const ab = await db.findOne(
+      'SELECT admin_price, lit_price, product_type_id FROM add_borders WHERE id = ? AND is_active = 1',
+      [add_border_id]
+    );
+    if (ab && String(ab.product_type_id) === String(item.product_type_id)) {
+      addBorderBasePrice = parseFloat(ab.admin_price || 0);
+      const adminLitExtra = parseFloat(ab.lit_price || 0);
+      if (vendorId) {
+        const vp = await vendorPricingModel.getAddBorderPrice(vendorId, add_border_id);
+        if (vp) {
+          addBorderBasePrice = parseFloat(vp.price);
+          if (isTruthyLit(border_is_lit)) addBorderLitExtra = parseFloat(vp.lit_price || 0);
+        } else if (isTruthyLit(border_is_lit)) {
+          addBorderLitExtra = adminLitExtra;
+        }
+      } else if (isTruthyLit(border_is_lit)) {
+        addBorderLitExtra = adminLitExtra;
+      }
+    }
+  }
+  const addBorderCost = parseFloat((addBorderBasePrice + addBorderLitExtra).toFixed(2));
+
+  let lollipopElementCost = 0;
+  if (lollipop_element_id) {
+    const le = await db.findOne(
+      'SELECT admin_price, product_type_id FROM lollipop_elements WHERE id = ? AND is_active = 1',
+      [lollipop_element_id]
+    );
+    if (le && String(le.product_type_id) === String(item.product_type_id)) {
+      lollipopElementCost = parseFloat(le.admin_price || 0);
+      if (vendorId) {
+        const vp = await vendorPricingModel.getLollipopElementPrice(vendorId, lollipop_element_id);
+        if (vp) lollipopElementCost = parseFloat(vp.price);
+      }
+    }
+  }
+
+  let colorExtra = 0;
+  if (color_id) {
+    const color = await db.findOne('SELECT admin_price_extra FROM colors WHERE id = ?', [color_id]);
+    colorExtra = parseFloat(color?.admin_price_extra || 0);
+    if (vendorId) {
+      const vp = await vendorPricingModel.getColorPrice(vendorId, color_id);
+      if (vp) colorExtra = parseFloat(vp.price_extra);
+    }
+  }
+
+  const unitPrice = parseFloat((addBorderCost + lollipopElementCost + colorExtra).toFixed(2));
+  const totalPrice = parseFloat((unitPrice * quantity).toFixed(2));
+
+  return {
+    area_sqft: 0,
+    price_per_sqft: 0,
+    material_cost: 0,
+    material_style_price_per_sqft: 0,
+    material_style_cost: 0,
+    frame_price_per_sqft: 0,
+    frame_cost: 0,
+    wallpaper_price_per_sqft: 0,
+    wallpaper_cost: 0,
+    base_price_per_sqft: 0,
+    base_cost: 0,
+    thickness_price_per_sqft: 0,
+    thickness_cost: 0,
+    element_cost: 0,
+    add_border_base_price: parseFloat(addBorderBasePrice.toFixed(2)),
+    add_border_lit_extra: parseFloat(addBorderLitExtra.toFixed(2)),
+    add_border_cost: addBorderCost,
+    lollipop_element_cost: parseFloat(lollipopElementCost.toFixed(2)),
+    color_extra: parseFloat(colorExtra.toFixed(2)),
+    font_extra: 0,
+    illumination_cost: 0,
+    illumination_rate_per_sqft: 0,
+    unit_price: unitPrice,
+    quantity: parseInt(quantity, 10),
+    total_price: totalPrice,
+  };
+};
 
 /**
  * Area in square feet from width × height in the customer's chosen unit.
@@ -22,6 +121,10 @@ const computeAreaSqft = async (height, width, dimensionUnitId) => {
  * @param {number|null} vendorId - null = use admin prices
  */
 const calculateItemPrice = async (item, vendorId = null) => {
+  if (isLollipopItem(item)) {
+    return calculateLollipopSignPrice(item, vendorId);
+  }
+
   const {
     material_id,
     material_style_id,
@@ -237,6 +340,10 @@ const calculateItemPrice = async (item, vendorId = null) => {
     font_extra: parseFloat(fontExtra.toFixed(2)),
     illumination_cost: parseFloat(illuminationCost.toFixed(2)),
     illumination_rate_per_sqft: parseFloat(illuminationRatePerSqft.toFixed(4)),
+    add_border_base_price: 0,
+    add_border_lit_extra: 0,
+    add_border_cost: 0,
+    lollipop_element_cost: 0,
     unit_price: unitPrice,
     quantity: parseInt(quantity, 10),
     total_price: totalPrice,
