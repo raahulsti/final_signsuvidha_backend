@@ -24,8 +24,7 @@ CREATE TABLE IF NOT EXISTS add_borders (
 CREATE TABLE IF NOT EXISTS lollipop_elements (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   product_type_id BIGINT UNSIGNED NOT NULL DEFAULT 6,
-  shape VARCHAR(20) NOT NULL COMMENT 'circle|oval|square',
-  name VARCHAR(150) NULL,
+  name VARCHAR(150) NOT NULL,
   description VARCHAR(1000) NULL,
   thumbnail_url VARCHAR(500) NULL,
   file_url VARCHAR(500) NULL,
@@ -35,8 +34,8 @@ CREATE TABLE IF NOT EXISTS lollipop_elements (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  UNIQUE KEY uq_lollipop_element_pt_shape (product_type_id, shape),
-  KEY idx_lollipop_elements_active (is_active)
+  KEY idx_lollipop_elements_active (is_active),
+  KEY idx_lollipop_elements_pt (product_type_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS vendor_add_border_pricing (

@@ -91,11 +91,13 @@ const toNestedCartItem = (item, pricing = null, adminSellerId = null) => ({
   } : null,
   lollipop_element: item.lollipop_element_id ? {
     id: item.lollipop_element_id,
-    shape: item.lollipop_element_shape,
     name: item.lollipop_element_name,
-    admin_price: item.lollipop_element_admin_price,
     description: nullableDescription(item.lollipop_element_description),
+    price: parseFloat(item.lollipop_element_admin_price || 0),
+    admin_price: parseFloat(item.lollipop_element_admin_price || 0),
+    image: nullableDescription(item.lollipop_element_file_url || item.lollipop_element_thumbnail_url),
     file_url: nullableDescription(item.lollipop_element_file_url),
+    thumbnail_url: nullableDescription(item.lollipop_element_thumbnail_url),
   } : null,
   base: item.base_id ? {
     id: item.base_id,
@@ -304,7 +306,7 @@ const validateLollipopCart = async ({ product_type_id, add_border_id, border_is_
   }
 
   if (lollipop_element_id) {
-    const el = await lollipopElementModel.getById(lollipop_element_id);
+    const el = await lollipopElementModel.getByIdRaw(lollipop_element_id);
     if (!el || !el.is_active) {
       const e = new Error('Selected lollipop element not found or inactive');
       e.statusCode = 400;

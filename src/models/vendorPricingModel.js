@@ -385,8 +385,11 @@ const getAllLollipopElementPrices = (vendorId) =>
     `SELECT
       le.id AS lollipop_element_id,
       le.product_type_id,
-      le.shape,
       le.name AS lollipop_element_name,
+      le.description AS lollipop_element_description,
+      le.file_url AS lollipop_element_image,
+      le.thumbnail_url AS lollipop_element_thumbnail_url,
+      le.admin_price AS admin_price,
       pt.name AS product_type_name,
       vle.price
      FROM lollipop_elements le
@@ -394,7 +397,7 @@ const getAllLollipopElementPrices = (vendorId) =>
      LEFT JOIN vendor_lollipop_element_pricing vle
        ON vle.lollipop_element_id = le.id AND vle.vendor_id = ? AND vle.is_active = 1
      WHERE le.is_active = 1
-     ORDER BY le.sort_order ASC, le.shape ASC`,
+     ORDER BY le.sort_order ASC, le.name ASC`,
     [vendorId]
   );
 

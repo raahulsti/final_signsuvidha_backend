@@ -19,9 +19,9 @@ exports.getAll = async (req, res, next) => {
 
 exports.getOne = async (req, res, next) => {
   try {
-    const row = await lollipopElementModel.getById(req.params.id);
+    const row = await lollipopElementModel.getByIdRaw(req.params.id);
     if (!row) return notFound(res, 'Lollipop element not found');
-    return success(res, row);
+    return success(res, lollipopElementModel.toPublicRow(row));
   } catch (err) { next(err); }
 };
 
@@ -36,7 +36,7 @@ exports.create = async (req, res, next) => {
 
 exports.update = async (req, res, next) => {
   try {
-    const existing = await lollipopElementModel.getById(req.params.id);
+    const existing = await lollipopElementModel.getByIdRaw(req.params.id);
     if (!existing) return notFound(res, 'Lollipop element not found');
     if (req.file) {
       if (existing.file_url) await deleteFromS3(existing.file_url);
@@ -49,7 +49,7 @@ exports.update = async (req, res, next) => {
 
 exports.delete = async (req, res, next) => {
   try {
-    const existing = await lollipopElementModel.getById(req.params.id);
+    const existing = await lollipopElementModel.getByIdRaw(req.params.id);
     if (!existing) return notFound(res, 'Lollipop element not found');
     if (existing.file_url) await deleteFromS3(existing.file_url);
     await lollipopElementModel.remove(req.params.id);

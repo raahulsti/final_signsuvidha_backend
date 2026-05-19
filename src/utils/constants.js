@@ -13,7 +13,6 @@ module.exports = {
 
   BORDER_SHAPES: ['circle', 'oval', 'square'],
   BORDER_SIZES: ['small', 'medium', 'large'],
-  LOLLIPOP_ELEMENT_SHAPES: ['circle', 'oval', 'square'],
 
   PRODUCT_SLUGS: {
     SIGNAGE_3D:    '3d_signage',
