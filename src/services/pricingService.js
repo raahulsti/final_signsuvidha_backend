@@ -7,6 +7,49 @@ const isLollipopItem = (item) =>
   String(item.product_type_id) === String(LOLLIPOP_PRODUCT_TYPE_ID)
   || item.product_type_slug === PRODUCT_SLUGS.LOLLIPOP_SIGN;
 
+const isListedItem = (item) => !!item.listed_product_id;
+
+const calculateListedProductPrice = async (item) => {
+  const listedProductModel = require('../models/listedProductModel');
+  const qty = parseInt(item.quantity, 10) || 1;
+  const variant = await listedProductModel.getVariantPrice(item.listed_product_id, item.listed_product_size);
+  if (!variant) {
+    const err = new Error('Listed product variant not found or inactive');
+    err.statusCode = 400;
+    throw err;
+  }
+  const unitPrice = parseFloat(variant.admin_price || 0);
+  const totalPrice = parseFloat((unitPrice * qty).toFixed(2));
+  return {
+    area_sqft: 0,
+    price_per_sqft: 0,
+    material_cost: 0,
+    material_style_price_per_sqft: 0,
+    material_style_cost: 0,
+    frame_price_per_sqft: 0,
+    frame_cost: 0,
+    wallpaper_price_per_sqft: 0,
+    wallpaper_cost: 0,
+    add_border_base_price: 0,
+    add_border_lit_extra: 0,
+    add_border_cost: 0,
+    lollipop_element_cost: 0,
+    base_price_per_sqft: 0,
+    base_cost: 0,
+    thickness_price_per_sqft: 0,
+    thickness_cost: 0,
+    element_cost: 0,
+    color_extra: 0,
+    font_extra: 0,
+    illumination_cost: 0,
+    illumination_rate_per_sqft: 0,
+    unit_price: unitPrice,
+    quantity: qty,
+    total_price: totalPrice,
+    listed_product_name: variant.name,
+  };
+};
+
 const isTruthyLit = (v) => v === true || v === 1 || v === '1' || String(v).toLowerCase() === 'true';
 
 /** Lollipop sign: fixed border + optional element + color (no area / dimension pricing). */
@@ -121,6 +164,14 @@ const computeAreaSqft = async (height, width, dimensionUnitId) => {
  * @param {number|null} vendorId - null = use admin prices
  */
 const calculateItemPrice = async (item, vendorId = null) => {
+  if (isListedItem(item)) {
+    if (vendorId) {
+      const err = new Error('Listed products are sold by admin only');
+      err.statusCode = 400;
+      throw err;
+    }
+    return calculateListedProductPrice(item);
+  }
   if (isLollipopItem(item)) {
     return calculateLollipopSignPrice(item, vendorId);
   }
@@ -355,6 +406,19 @@ const calculateItemPrice = async (item, vendorId = null) => {
  * Returns admin + all approved vendors with their prices
  */
 const getVendorComparison = async (item) => {
+  if (isListedItem(item)) {
+    const adminPrice = await calculateListedProductPrice(item);
+    return {
+      admin: {
+        seller: process.env.COMPANY_NAME || 'Company (Admin)',
+        vendor_id: null,
+        logo_url: process.env.COMPANY_LOGO_URL || null,
+        ...adminPrice,
+      },
+      vendors: [],
+      listed_product: true,
+    };
+  }
   const [adminPrice, vendors] = await Promise.all([
     calculateItemPrice(item, null),
     vendorModel.getAllApproved(),

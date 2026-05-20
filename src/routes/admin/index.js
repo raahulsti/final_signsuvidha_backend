@@ -29,5 +29,6 @@ router.use('/shipping-services',require('./shippingServices'));
 router.use('/listed-products',  require('./listedProducts'));
 router.use('/vendors',          require('./vendors'));
 router.use('/orders',           require('./orders'));
+router.use('/cms-pages',        require('./cmsPages'));
 
 module.exports = router;

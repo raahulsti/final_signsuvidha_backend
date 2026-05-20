@@ -9,6 +9,8 @@ const wallpaperModel = require('../../models/wallpaperModel');
 const { PRODUCT_SLUGS, LOLLIPOP_PRODUCT_TYPE_ID } = require('../../utils/constants');
 const addBorderModel = require('../../models/addBorderModel');
 const lollipopElementModel = require('../../models/lollipopElementModel');
+const listedProductModel = require('../../models/listedProductModel');
+const { LISTED_PRODUCT_SIZES } = require('../../utils/constants');
 const { getVendorComparison, calculateItemPrice } = require('../../services/pricingService');
 const { success, created, notFound, error } = require('../../utils/response');
 const db = require('../../config/db');
@@ -82,11 +84,11 @@ const toNestedCartItem = (item, pricing = null, adminSellerId = null) => ({
     id: item.add_border_id,
     shape: item.add_border_shape,
     size: item.add_border_size,
-    name: item.add_border_name,
+    height: nullableDescription(item.add_border_height),
+    width: nullableDescription(item.add_border_width),
     border_is_lit: Boolean(item.border_is_lit),
     admin_price: item.add_border_admin_price,
     lit_price: item.add_border_lit_price,
-    description: nullableDescription(item.add_border_description),
     file_url: nullableDescription(item.add_border_file_url),
   } : null,
   lollipop_element: item.lollipop_element_id ? {
@@ -176,6 +178,39 @@ const toNestedCartItem = (item, pricing = null, adminSellerId = null) => ({
   updated_at: item.updated_at,
 });
 
+const toNestedListedCartItem = async (item, pricing, adminSellerId) => {
+  const images = await listedProductModel.getImages(item.listed_product_id);
+  return {
+    item_type: 'listed',
+    id: item.id,
+    user_id: item.user_id,
+    quantity: item.quantity,
+    listed_product: {
+      id: item.listed_product_id,
+      name: item.listed_product_name,
+      description: item.listed_product_description,
+      size: item.listed_product_size,
+      images: images.map((i) => i.file_url),
+      thumbnail_url: images[0]?.file_url || item.listed_product_thumbnail || null,
+    },
+    product_type: item.product_type_id ? {
+      id: item.product_type_id,
+      name: item.product_type_name,
+      slug: item.product_type_slug,
+    } : null,
+    seller_type: 'admin',
+    seller_id: adminSellerId,
+    selected_vendor: null,
+    pricing: {
+      unit_price: pricing.unit_price,
+      total_price: pricing.total_price,
+      breakdown: {},
+    },
+    created_at: item.created_at,
+    updated_at: item.updated_at,
+  };
+};
+
 const buildCartResponse = async (userId) => {
   const items = await cartModel.getCartByUser(userId);
   let adminSellerId = ADMIN_SELLER_ID;
@@ -193,8 +228,12 @@ const buildCartResponse = async (userId) => {
   }
   const enriched = await Promise.all(
     items.map(async (item) => {
+      if (item.listed_product_id) {
+        const pricing = await calculateItemPrice(item, null);
+        return toNestedListedCartItem(item, pricing, adminSellerId);
+      }
       const pricing = await calculateItemPrice(item, item.vendor_id || null);
-      return toNestedCartItem(item, pricing, adminSellerId);
+      return { ...toNestedCartItem(item, pricing, adminSellerId), item_type: 'custom' };
     })
   );
   return enriched;
@@ -370,6 +409,34 @@ exports.getCart = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+exports.addListedItem = async (req, res, next) => {
+  try {
+    const { listed_product_id, size, quantity } = req.body;
+    if (!LISTED_PRODUCT_SIZES.includes(size)) {
+      return error(res, 'Invalid size. Use regular, medium, or large', 400);
+    }
+    const variant = await listedProductModel.getVariantPrice(listed_product_id, size);
+    if (!variant) {
+      return error(res, 'This size is not available for this product. Choose from the sizes shown on the product.', 400);
+    }
+    const product = await listedProductModel.getById(listed_product_id);
+    if (!product || !product.is_active) return notFound(res, 'Listed product not found');
+
+    const result = await cartModel.addListedItem({
+      user_id: req.user.id,
+      listed_product_id,
+      listed_product_size: size,
+      product_type_id: product.product_type_id,
+      quantity,
+    });
+    return created(res, {
+      id: result.insertId,
+      merged: result.merged,
+      cart: await buildCartResponse(req.user.id),
+    }, result.merged ? 'Quantity updated in cart' : 'Listed product added to cart');
+  } catch (err) { next(err); }
+};
+
 exports.addItem = async (req, res, next) => {
   try {
     sanitizeOptionalImageFields(req.body);
@@ -411,6 +478,9 @@ exports.updateItem = async (req, res, next) => {
     sanitizeOptionalImageFields(req.body);
     const item = await cartModel.getItemById(req.params.id, req.user.id);
     if (!item) return notFound(res, 'Cart item not found');
+    if (item.listed_product_id) {
+      return error(res, 'Use quantity endpoints to update listed product cart lines', 400);
+    }
     if (!req.body.product_type_id) {
       return error(res, 'product_type_id is required while updating cart item', 400);
     }
@@ -467,6 +537,9 @@ exports.vendorCompare = async (req, res, next) => {
   try {
     const item = await cartModel.getItemById(req.params.id, req.user.id);
     if (!item) return notFound(res, 'Cart item not found');
+    if (item.listed_product_id) {
+      return success(res, await getVendorComparison(item), 'Listed product — admin price only');
+    }
     const comparison = await getVendorComparison(item);
     return success(res, comparison, 'Vendor pricing comparison');
   } catch (err) { next(err); }
@@ -476,6 +549,9 @@ exports.selectVendor = async (req, res, next) => {
   try {
     const item = await cartModel.getItemById(req.params.id, req.user.id);
     if (!item) return notFound(res, 'Cart item not found');
+    if (item.listed_product_id) {
+      return error(res, 'Listed products are fulfilled by admin only', 400);
+    }
     const { vendor_id } = req.body;
     // vendor_id = null means customer chose admin/company
     if (vendor_id) {

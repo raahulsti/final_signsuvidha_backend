@@ -352,7 +352,8 @@ const getAllAddBorderPrices = (vendorId) =>
       ab.product_type_id,
       ab.shape,
       ab.size,
-      ab.name AS add_border_name,
+      ab.height AS add_border_height,
+      ab.width AS add_border_width,
       pt.name AS product_type_name,
       vab.price,
       vab.lit_price

@@ -45,11 +45,20 @@ const addRole = async (userId, roleName) => {
   );
 };
 
-const updateProfile = (userId, { name, phone }) =>
-  db.execute(
-    'UPDATE users SET name = ?, phone = ?, updated_at = NOW() WHERE id = ?',
-    [name, phone, userId]
-  );
+const updateCustomerProfile = (userId, fields) => {
+  const allowed = ['name', 'gender'];
+  const sets = [];
+  const values = [];
+  allowed.forEach((k) => {
+    if (fields[k] !== undefined) {
+      sets.push(`${k} = ?`);
+      values.push(fields[k]);
+    }
+  });
+  if (!sets.length) return Promise.resolve(null);
+  values.push(userId);
+  return db.execute(`UPDATE users SET ${sets.join(', ')}, updated_at = NOW() WHERE id = ?`, values);
+};
 
  const findByPhone = (phone) =>
     db.findOne('SELECT * FROM users WHERE phone = ?', [phone]);
@@ -57,4 +66,4 @@ const updateProfile = (userId, { name, phone }) =>
 const setActive = (userId, isActive) =>
   db.execute('UPDATE users SET is_active = ?, updated_at = NOW() WHERE id = ?', [isActive ? 1 : 0, userId]);
 
-module.exports = { findByEmail, findById, create, comparePassword, getRoles, addRole, updateProfile , findByPhone, setActive };
+module.exports = { findByEmail, findById, create, comparePassword, getRoles, addRole, updateCustomerProfile, findByPhone, setActive };

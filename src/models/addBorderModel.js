@@ -11,6 +11,26 @@ const normalizeSize = (v) => {
   return BORDER_SIZES.includes(s) ? s : 'small';
 };
 
+const toPublicRow = (row) => {
+  if (!row) return row;
+  return {
+    id: row.id,
+    product_type_id: row.product_type_id,
+    shape: row.shape,
+    size: row.size,
+    height: row.height,
+    width: row.width,
+    admin_price: parseFloat(row.admin_price || 0),
+    lit_price: parseFloat(row.lit_price || 0),
+    thumbnail_url: row.thumbnail_url,
+    file_url: row.file_url,
+    sort_order: row.sort_order,
+    is_active: row.is_active,
+    product_type_name: row.product_type_name,
+    product_type_slug: row.product_type_slug,
+  };
+};
+
 const getAll = ({ productTypeId, isActive, offset, limit }) => {
   const conditions = [];
   const values = [];
@@ -28,7 +48,8 @@ const getAll = ({ productTypeId, isActive, offset, limit }) => {
     ORDER BY ab.sort_order ASC, ab.shape ASC, ab.size ASC
     LIMIT ? OFFSET ?
   `;
-  return db.paginate(sql, `SELECT COUNT(*) AS total FROM add_borders ab ${where}`, [...values, limit, offset], values);
+  return db.paginate(sql, `SELECT COUNT(*) AS total FROM add_borders ab ${where}`, [...values, limit, offset], values)
+    .then(({ rows, total }) => ({ rows: rows.map(toPublicRow), total }));
 };
 
 const getById = (id) =>
@@ -44,8 +65,8 @@ const create = ({
   product_type_id = LOLLIPOP_PRODUCT_TYPE_ID,
   shape,
   size,
-  name,
-  description,
+  height,
+  width,
   thumbnail_url,
   file_url,
   admin_price,
@@ -54,14 +75,14 @@ const create = ({
 }) =>
   db.execute(
     `INSERT INTO add_borders
-       (product_type_id, shape, size, name, description, thumbnail_url, file_url, admin_price, lit_price, sort_order)
+       (product_type_id, shape, size, height, width, thumbnail_url, file_url, admin_price, lit_price, sort_order)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       product_type_id,
       normalizeShape(shape),
       normalizeSize(size),
-      name || null,
-      description || null,
+      height || null,
+      width || null,
       thumbnail_url || null,
       file_url || null,
       admin_price ?? 0,
@@ -71,7 +92,7 @@ const create = ({
   );
 
 const update = (id, fields) => {
-  const allowed = ['name', 'description', 'thumbnail_url', 'file_url', 'admin_price', 'lit_price', 'sort_order', 'is_active', 'shape', 'size'];
+  const allowed = ['height', 'width', 'thumbnail_url', 'file_url', 'admin_price', 'lit_price', 'sort_order', 'is_active', 'shape', 'size'];
   const sets = [];
   const values = [];
 
@@ -91,4 +112,4 @@ const update = (id, fields) => {
 
 const remove = (id) => db.execute('DELETE FROM add_borders WHERE id = ?', [id]);
 
-module.exports = { getAll, getById, create, update, remove, normalizeShape, normalizeSize };
+module.exports = { getAll, getById, create, update, remove, normalizeShape, normalizeSize, toPublicRow };

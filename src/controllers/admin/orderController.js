@@ -1,4 +1,5 @@
 const orderModel = require('../../models/orderModel');
+const { enrichOrderForPanel, enrichOrdersForPanel, getAdminSellerId } = require('../../services/orderResponseService');
 const { success, notFound, paginated } = require('../../utils/response');
 const { getPagination, getPaginationMeta } = require('../../utils/helpers');
 const { buildInvoicePdf } = require('../../services/invoiceService');
@@ -17,8 +18,8 @@ exports.getOne = async (req, res, next) => {
   try {
     const order = await orderModel.getById(req.params.id);
     if (!order) return notFound(res, 'Order not found');
-    const items = await orderModel.getOrderItems(order.id);
-    return success(res, { ...order, items });
+    const enriched = await enrichOrderForPanel(order, null, await getAdminSellerId());
+    return success(res, enriched);
   } catch (err) { next(err); }
 };
 

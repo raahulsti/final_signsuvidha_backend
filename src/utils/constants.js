@@ -41,6 +41,12 @@ module.exports = {
 
   PAYMENT_STATUS: ['pending', 'paid', 'failed', 'refunded'],
 
+  /** Static CMS pages (slug → GET /api/common/pages/:slug). */
+  CMS_PAGE_SLUGS: ['terms-conditions', 'about-us', 'privacy-policy'],
+
+  /** Allowed listed-product size tier names (product may have one or more, not necessarily all three). */
+  LISTED_PRODUCT_SIZES: ['regular', 'medium', 'large'],
+
   S3_FOLDERS: {
     MATERIALS:       'materials',
     BASES:           'bases',

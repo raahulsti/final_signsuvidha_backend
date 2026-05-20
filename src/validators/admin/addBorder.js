@@ -5,12 +5,12 @@ const create = Joi.object({
   product_type_id: Joi.number().integer().positive().default(LOLLIPOP_PRODUCT_TYPE_ID),
   shape:           Joi.string().valid(...BORDER_SHAPES).required(),
   size:            Joi.string().valid(...BORDER_SIZES).required(),
-  name:            Joi.string().max(150).optional().allow(''),
-  description:     Joi.string().max(1000).optional().allow(''),
+  height:          Joi.string().max(150).optional().allow('', null),
+  width:           Joi.string().max(150).optional().allow('', null),
   admin_price:     Joi.number().min(0).required(),
   lit_price:       Joi.number().min(0).required(),
   sort_order:      Joi.number().integer().min(0).optional(),
-  is_active:       Joi.boolean().optional(),
+  is_active:       Joi.boolean().truthy('true', '1', 1).falsy('false', '0', 0, '').optional(),
 });
 
 const update = create.fork(

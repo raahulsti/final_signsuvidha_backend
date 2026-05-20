@@ -20,7 +20,8 @@ const create = async (conn, { customer_user_id, vendor_id, order_number, shippin
 
 const createItem = (conn, item) => {
   const {
-    order_id, product_type_id, material_id, material_style_id, frame_id, wallpaper_id,
+    order_id, listed_product_id, listed_product_size,
+    product_type_id, material_id, material_style_id, frame_id, wallpaper_id,
     add_border_id, border_is_lit,
     lollipop_element_id,
     base_id, thickness_id, element_id, color_id, font_id,
@@ -36,7 +37,7 @@ const createItem = (conn, item) => {
   } = item;
   return conn.execute(
     `INSERT INTO order_items
-       (order_id, product_type_id, material_id, material_style_id, frame_id, wallpaper_id,
+       (order_id, listed_product_id, listed_product_size, product_type_id, material_id, material_style_id, frame_id, wallpaper_id,
         add_border_id, border_is_lit, lollipop_element_id,
         base_id, thickness_id, element_id, color_id, font_id,
         illumination_option_id, text_layers, height, width, dimension_unit_id, uploaded_image_url,
@@ -46,9 +47,10 @@ const createItem = (conn, item) => {
         base_price_per_sqft, base_cost, thickness_price_per_sqft, thickness_cost,
         element_cost, color_extra, illumination_cost,
         unit_price, quantity, total_price, preview_image_url)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
-      order_id, product_type_id, material_id || null, material_style_id || null, frame_id || null, wallpaper_id || null,
+      order_id, listed_product_id || null, listed_product_size || null,
+      product_type_id, material_id || null, material_style_id || null, frame_id || null, wallpaper_id || null,
       add_border_id || null, border_is_lit ? 1 : 0, lollipop_element_id || null,
       base_id || null, thickness_id || null, element_id || null, color_id || null, font_id || null,
       illumination_option_id || null,
@@ -71,9 +73,12 @@ const getByCustomer = ({ userId, status, offset, limit }) => {
   const conds = ['o.customer_user_id = ?']; const vals = [userId];
   if (status) { conds.push('o.status = ?'); vals.push(status); }
   const sql = `
-    SELECT o.*, inv.invoice_number, v.business_name AS vendor_name, ss.name AS shipping_service_name
+    SELECT o.*, inv.invoice_number,
+           u.name AS customer_name, u.email AS customer_email, u.phone AS customer_phone,
+           v.business_name AS vendor_name, ss.name AS shipping_service_name
     FROM orders o
     LEFT JOIN order_invoice_numbers inv ON inv.order_id = o.id
+    LEFT JOIN users u              ON u.id = o.customer_user_id
     LEFT JOIN vendors v          ON v.id  = o.vendor_id
     LEFT JOIN shipping_services ss ON ss.id = o.shipping_service_id
     WHERE ${conds.join(' AND ')}
@@ -95,13 +100,58 @@ const getById = (id) =>
      WHERE o.id = ?`, [id]
   );
 
+const ORDER_ITEMS_SELECT = `
+  SELECT oi.*,
+         pt.name AS product_type_name, pt.slug AS product_type_slug,
+         m.name AS material_name, m.description AS material_description, m.file_url AS material_file_url,
+         ms.name AS material_style_name, ms.description AS material_style_description,
+         fr.name AS frame_name, fr.description AS frame_description, fr.file_url AS frame_file_url,
+         wp.name AS wallpaper_name, wp.wallpaper_type AS wallpaper_type,
+         wp.description AS wallpaper_description, wp.file_url AS wallpaper_file_url,
+         ab.shape AS add_border_shape, ab.size AS add_border_size,
+         ab.height AS add_border_height, ab.width AS add_border_width, ab.file_url AS add_border_file_url,
+         le.name AS lollipop_element_name, le.description AS lollipop_element_description,
+         le.thumbnail_url AS lollipop_element_thumbnail_url, le.file_url AS lollipop_element_file_url,
+         b.name AS base_name, b.description AS base_description, b.file_url AS base_file_url,
+         th.name AS thickness_name, th.description AS thickness_description, th.file_url AS thickness_file_url,
+         e.name AS element_name, e.description AS element_description, e.file_url AS element_file_url,
+         c.hex_code, c.name AS color_name,
+         f.name AS font_name, f.file_url AS font_file_url,
+         io.name AS illumination_option_name, io.category AS illumination_category,
+         io.description AS illumination_description,
+         du.unit_name, du.conversion_to_sqft,
+         lp.name AS listed_product_name, lp.description AS listed_product_description,
+         lp.thumbnail_url AS listed_product_thumbnail
+  FROM order_items oi
+  LEFT JOIN product_types pt ON pt.id = oi.product_type_id
+  LEFT JOIN listed_products lp ON lp.id = oi.listed_product_id
+  LEFT JOIN materials m ON m.id = oi.material_id
+  LEFT JOIN material_styles ms ON ms.id = oi.material_style_id
+  LEFT JOIN frames fr ON fr.id = oi.frame_id
+  LEFT JOIN wallpapers wp ON wp.id = oi.wallpaper_id
+  LEFT JOIN add_borders ab ON ab.id = oi.add_border_id
+  LEFT JOIN lollipop_elements le ON le.id = oi.lollipop_element_id
+  LEFT JOIN bases b ON b.id = oi.base_id
+  LEFT JOIN thicknesses th ON th.id = oi.thickness_id
+  LEFT JOIN elements e ON e.id = oi.element_id
+  LEFT JOIN colors c ON c.id = oi.color_id
+  LEFT JOIN fonts f ON f.id = oi.font_id
+  LEFT JOIN illumination_options io ON io.id = oi.illumination_option_id
+  LEFT JOIN dimension_units du ON du.id = oi.dimension_unit_id`;
+
 const getOrderItems = (orderId) =>
-  db.execute(
-    `SELECT oi.*, pt.name AS product_type_name, pt.name AS product_name
-     FROM order_items oi
-     LEFT JOIN product_types pt ON pt.id = oi.product_type_id
-     WHERE oi.order_id = ?`, [orderId]
+  db.execute(`${ORDER_ITEMS_SELECT} WHERE oi.order_id = ? ORDER BY oi.id ASC`, [orderId]);
+
+const getOrderItemsEnriched = (orderId) => getOrderItems(orderId);
+
+const getOrderItemsEnrichedByOrderIds = (orderIds) => {
+  if (!orderIds?.length) return Promise.resolve([]);
+  const placeholders = orderIds.map(() => '?').join(',');
+  return db.execute(
+    `${ORDER_ITEMS_SELECT} WHERE oi.order_id IN (${placeholders}) ORDER BY oi.order_id ASC, oi.id ASC`,
+    orderIds
   );
+};
 
 const updateStatus = (id, status) =>
   db.execute('UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?', [status, id]);
@@ -143,7 +193,8 @@ const getByVendor = ({ vendorId, status, offset, limit }) => {
   const conds = ['o.vendor_id = ?']; const vals = [vendorId];
   if (status) { conds.push('o.status = ?'); vals.push(status); }
   const sql = `
-    SELECT o.*, inv.invoice_number, u.name AS customer_name
+    SELECT o.*, inv.invoice_number,
+           u.name AS customer_name, u.email AS customer_email, u.phone AS customer_phone
     FROM orders o LEFT JOIN users u ON u.id = o.customer_user_id
     LEFT JOIN order_invoice_numbers inv ON inv.order_id = o.id
     WHERE ${conds.join(' AND ')}
@@ -154,6 +205,7 @@ const getByVendor = ({ vendorId, status, offset, limit }) => {
 };
 
 module.exports = {
-  create, createItem, getByCustomer, getById, getOrderItems, updateStatus, updatePayment, updateOrderNumber, updatePaymentBatchId,
+  create, createItem, getByCustomer, getById, getOrderItems, getOrderItemsEnriched, getOrderItemsEnrichedByOrderIds,
+  updateStatus, updatePayment, updateOrderNumber, updatePaymentBatchId,
   getAll, getByVendor,
 };

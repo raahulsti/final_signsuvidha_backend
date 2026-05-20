@@ -9,6 +9,7 @@ const { createOrder, verifySignature } = require('../../services/razorpayService
 const { success, created, notFound, error, paginated } = require('../../utils/response');
 const { getPagination, getPaginationMeta } = require('../../utils/helpers');
 const { nextSellerSerials, saveInvoiceNumber } = require('../../services/orderNumberService');
+const { enrichOrder, enrichOrders } = require('../../services/orderResponseService');
 const { LOLLIPOP_PRODUCT_TYPE_ID, PRODUCT_SLUGS } = require('../../utils/constants');
 
 const isLollipopOrderItem = (item) =>
@@ -280,6 +281,8 @@ exports.checkout = async (req, res, next) => {
         for (const item of items) {
           await orderModel.createItem(conn, {
             order_id: orderId,
+            listed_product_id: item.listed_product_id || null,
+            listed_product_size: item.listed_product_size || null,
             product_type_id: item.product_type_id,
             material_id: item.material_id,
             material_style_id: item.material_style_id,
@@ -299,9 +302,9 @@ exports.checkout = async (req, res, next) => {
             font_id: item.font_id,
             illumination_option_id: item.illumination_option_id,
             text_layers: item.text_layers,
-            height: isLollipopOrderItem(item) ? 0 : (item.height || 0),
-            width: isLollipopOrderItem(item) ? 0 : (item.width || 0),
-            dimension_unit_id: isLollipopOrderItem(item) ? null : (item.dimension_unit_id || null),
+            height: (isLollipopOrderItem(item) || item.listed_product_id) ? 0 : (item.height || 0),
+            width: (isLollipopOrderItem(item) || item.listed_product_id) ? 0 : (item.width || 0),
+            dimension_unit_id: (isLollipopOrderItem(item) || item.listed_product_id) ? null : (item.dimension_unit_id || null),
             uploaded_image_url: item.uploaded_image_url,
             price_per_sqft: item.price_per_sqft,
             material_cost: item.material_cost,
@@ -408,16 +411,9 @@ exports.getOne = async (req, res, next) => {
   try {
     const order = await orderModel.getById(req.params.id);
     if (!order || order.customer_user_id !== req.user.id) return notFound(res, 'Order not found');
-    const items = await orderModel.getOrderItems(order.id);
     const adminSellerId = await getAdminSellerId();
-    return success(res, {
-      ...order,
-      order_number: order.payment_status === 'paid' ? order.order_number : null,
-      invoice_number: order.payment_status === 'paid' ? order.invoice_number : null,
-      seller_type: order.seller_type || (order.vendor_id ? 'vendor' : 'admin'),
-      seller_id: order.seller_id || (order.vendor_id ? order.vendor_id : adminSellerId),
-      items,
-    });
+    const enriched = await enrichOrder(order, null, adminSellerId);
+    return success(res, enriched);
   } catch (err) { next(err); }
 };
 

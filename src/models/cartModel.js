@@ -35,9 +35,10 @@ const getCartByUser = (userId) =>
             wp.name   AS wallpaper_name,     wp.admin_price_per_sqft AS wallpaper_admin_price_per_sqft,
             wp.wallpaper_type AS wallpaper_type,
             wp.description AS wallpaper_description, wp.file_url AS wallpaper_file_url,
-            ab.shape AS add_border_shape, ab.size AS add_border_size, ab.name AS add_border_name,
+            ab.shape AS add_border_shape, ab.size AS add_border_size,
+            ab.height AS add_border_height, ab.width AS add_border_width,
             ab.admin_price AS add_border_admin_price, ab.lit_price AS add_border_lit_price,
-            ab.description AS add_border_description, ab.file_url AS add_border_file_url,
+            ab.file_url AS add_border_file_url,
             le.name AS lollipop_element_name,
             le.admin_price AS lollipop_element_admin_price,
             le.description AS lollipop_element_description,
@@ -55,9 +56,14 @@ const getCartByUser = (userId) =>
             io.admin_price_per_sqft AS illumination_admin_price_per_sqft,
             io.description AS illumination_description,
             du.unit_name,                   du.conversion_to_sqft,
-            v.business_name AS vendor_name
+            v.business_name AS vendor_name,
+            lp.name AS listed_product_name, lp.description AS listed_product_description,
+            lp.thumbnail_url AS listed_product_thumbnail,
+            lpv.admin_price AS listed_variant_admin_price
      FROM cart_items ci
      LEFT JOIN product_types  pt ON pt.id = ci.product_type_id
+     LEFT JOIN listed_products lp ON lp.id = ci.listed_product_id
+     LEFT JOIN listed_product_variants lpv ON lpv.listed_product_id = ci.listed_product_id AND lpv.size = ci.listed_product_size
      LEFT JOIN materials        m ON m.id  = ci.material_id
      LEFT JOIN material_styles ms ON ms.id = ci.material_style_id
      LEFT JOIN frames          fr ON fr.id = ci.frame_id
@@ -122,9 +128,35 @@ const updateItem = (id, fields) => {
   return db.execute(`UPDATE cart_items SET ${sets.join(', ')}, updated_at = NOW() WHERE id = ?`, values);
 };
 
+const findListedLine = (userId, listedProductId, size) =>
+  db.findOne(
+    'SELECT * FROM cart_items WHERE user_id = ? AND listed_product_id = ? AND listed_product_size = ?',
+    [userId, listedProductId, size]
+  ).then(normalizeCartRow);
+
+const addListedItem = async ({ user_id, listed_product_id, listed_product_size, product_type_id, quantity }) => {
+  const existing = await findListedLine(user_id, listed_product_id, listed_product_size);
+  if (existing) {
+    await db.execute(
+      'UPDATE cart_items SET quantity = quantity + ?, updated_at = NOW() WHERE id = ?',
+      [quantity || 1, existing.id]
+    );
+    return { insertId: existing.id, merged: true };
+  }
+  const result = await db.execute(
+    `INSERT INTO cart_items (user_id, listed_product_id, listed_product_size, product_type_id, quantity, vendor_id)
+     VALUES (?, ?, ?, ?, ?, NULL)`,
+    [user_id, listed_product_id, listed_product_size, product_type_id, quantity || 1]
+  );
+  return { insertId: result.insertId, merged: false };
+};
+
 const removeItem  = (id, userId) => db.execute('DELETE FROM cart_items WHERE id = ? AND user_id = ?', [id, userId]);
 const clearCart   = (userId)     => db.execute('DELETE FROM cart_items WHERE user_id = ?', [userId]);
 const selectVendor= (id, userId, vendorId) =>
   db.execute('UPDATE cart_items SET vendor_id = ?, updated_at = NOW() WHERE id = ? AND user_id = ?', [vendorId, id, userId]);
 
-module.exports = { getCartByUser, getItemById, addItem, updateItem, removeItem, clearCart, selectVendor };
+module.exports = {
+  getCartByUser, getItemById, addItem, addListedItem, findListedLine,
+  updateItem, removeItem, clearCart, selectVendor,
+};

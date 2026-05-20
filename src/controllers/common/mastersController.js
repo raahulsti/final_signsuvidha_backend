@@ -167,11 +167,10 @@ exports.getIlluminationOptions = async (req, res, next) => {
 
 exports.getListedProducts = async (req, res, next) => {
   try {
+    const listedProductModel = require('../../models/listedProductModel');
     const { product_type_id, is_best_seller } = req.query;
-    const conds = ['is_active = 1']; const vals = [];
-    if (product_type_id) { conds.push('product_type_id = ?'); vals.push(product_type_id); }
-    if (is_best_seller)  { conds.push('is_best_seller = 1'); }
-    const rows = await db.execute(`SELECT * FROM listed_products WHERE ${conds.join(' AND ')} ORDER BY sort_order ASC, is_best_seller DESC`, vals);
-    return success(res, rows);
-  } catch(e){next(e);}
+    const rows = await listedProductModel.getAll({ activeOnly: true, productTypeId: product_type_id });
+    const filtered = is_best_seller ? rows.filter((r) => r.is_best_seller) : rows;
+    return success(res, filtered);
+  } catch (e) { next(e); }
 };
