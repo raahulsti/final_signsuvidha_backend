@@ -9,6 +9,7 @@ const { S3_FOLDERS } = require('../../utils/constants');
 const cartUpload = createCartUploader(S3_FOLDERS.USER_UPLOADS, ALLOWED_IMAGE_TYPES, 20);
 
 router.get('/',                       ctrl.getCart);
+router.get('/listed',                 ctrl.getListedCart);
 router.post('/listed',                validate(vListed.addListed), ctrl.addListedItem);
 router.post('/',      cartUpload, applyCartUploadedFiles, validate(v.addToCart), ctrl.addItem);
 router.put('/:id',    cartUpload, applyCartUploadedFiles, validate(v.addToCart), ctrl.updateItem);

@@ -234,21 +234,23 @@ const toNestedListedCartItem = async (item, pricing, adminSellerId) => {
   };
 };
 
-const buildCartResponse = async (userId) => {
-  const items = await cartModel.getCartByUser(userId);
-  let adminSellerId = ADMIN_SELLER_ID;
-  if (!adminSellerId) {
-    const adminUser = await db.findOne(
-      `SELECT u.id
-       FROM users u
-       INNER JOIN user_roles ur ON ur.user_id = u.id
-       INNER JOIN roles r ON r.id = ur.role_id
-       WHERE r.name = 'super_admin'
-       ORDER BY u.id ASC
-       LIMIT 1`
-    );
-    adminSellerId = adminUser?.id || null;
-  }
+const resolveAdminSellerId = async () => {
+  if (ADMIN_SELLER_ID) return ADMIN_SELLER_ID;
+  const adminUser = await db.findOne(
+    `SELECT u.id
+     FROM users u
+     INNER JOIN user_roles ur ON ur.user_id = u.id
+     INNER JOIN roles r ON r.id = ur.role_id
+     WHERE r.name = 'super_admin'
+     ORDER BY u.id ASC
+     LIMIT 1`
+  );
+  return adminUser?.id || null;
+};
+
+const buildCartResponse = async (userId, { customOnly = false, listedOnly = false } = {}) => {
+  const items = await cartModel.getCartByUser(userId, { customOnly, listedOnly });
+  const adminSellerId = await resolveAdminSellerId();
   const enriched = await Promise.all(
     items.map(async (item) => {
       if (item.listed_product_id) {
@@ -480,7 +482,13 @@ const validateWallpaperCatalogRow = async ({ product_type_id, wallpaper_id }) =>
 
 exports.getCart = async (req, res, next) => {
   try {
-    return success(res, await buildCartResponse(req.user.id));
+    return success(res, await buildCartResponse(req.user.id, { customOnly: true }));
+  } catch (err) { next(err); }
+};
+
+exports.getListedCart = async (req, res, next) => {
+  try {
+    return success(res, await buildCartResponse(req.user.id, { listedOnly: true }));
   } catch (err) { next(err); }
 };
 
@@ -507,7 +515,7 @@ exports.addListedItem = async (req, res, next) => {
     return created(res, {
       id: result.insertId,
       merged: result.merged,
-      cart: await buildCartResponse(req.user.id),
+      cart: await buildCartResponse(req.user.id, { listedOnly: true }),
     }, result.merged ? 'Quantity updated in cart' : 'Listed product added to cart');
   } catch (err) { next(err); }
 };
@@ -666,7 +674,8 @@ exports.increaseQuantity = async (req, res, next) => {
     if (!item) return notFound(res, 'Cart item not found');
     const nextQty = Number(item.quantity || 0) + 1;
     await cartModel.updateItem(req.params.id, { quantity: nextQty });
-    return success(res, await buildCartResponse(req.user.id), 'Quantity increased');
+    const cartOpts = item.listed_product_id ? { listedOnly: true } : { customOnly: true };
+    return success(res, await buildCartResponse(req.user.id, cartOpts), 'Quantity increased');
   } catch (err) { next(err); }
 };
 
@@ -676,7 +685,8 @@ exports.decreaseQuantity = async (req, res, next) => {
     if (!item) return notFound(res, 'Cart item not found');
     const nextQty = Math.max(1, Number(item.quantity || 1) - 1);
     await cartModel.updateItem(req.params.id, { quantity: nextQty });
-    return success(res, await buildCartResponse(req.user.id), 'Quantity decreased');
+    const cartOpts = item.listed_product_id ? { listedOnly: true } : { customOnly: true };
+    return success(res, await buildCartResponse(req.user.id, cartOpts), 'Quantity decreased');
   } catch (err) { next(err); }
 };
 
@@ -689,6 +699,7 @@ exports.setQuantity = async (req, res, next) => {
       return error(res, 'quantity must be an integer between 1 and 100', 400);
     }
     await cartModel.updateItem(req.params.id, { quantity: qty });
-    return success(res, await buildCartResponse(req.user.id), 'Quantity updated');
+    const cartOpts = item.listed_product_id ? { listedOnly: true } : { customOnly: true };
+    return success(res, await buildCartResponse(req.user.id, cartOpts), 'Quantity updated');
   } catch (err) { next(err); }
 };

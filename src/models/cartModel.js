@@ -25,8 +25,12 @@ const normalizeCartRow = (row) => {
   };
 };
 
-const getCartByUser = (userId) =>
-  db.execute(
+const getCartByUser = (userId, { customOnly = false, listedOnly = false } = {}) => {
+  const conds = ['ci.user_id = ?'];
+  const vals = [userId];
+  if (customOnly) conds.push('ci.listed_product_id IS NULL');
+  if (listedOnly) conds.push('ci.listed_product_id IS NOT NULL');
+  return db.execute(
     `SELECT ci.*,
             pt.name   AS product_type_name, pt.slug AS product_type_slug,
             m.name    AS material_name,     m.admin_price_per_sqft, m.description AS material_description,
@@ -93,10 +97,11 @@ const getCartByUser = (userId) =>
      LEFT JOIN illumination_options io ON io.id = ci.illumination_option_id
      LEFT JOIN dimension_units du ON du.id = ci.dimension_unit_id
      LEFT JOIN vendors          v ON v.id  = ci.vendor_id
-     WHERE ci.user_id = ?
+     WHERE ${conds.join(' AND ')}
      ORDER BY ci.created_at DESC`,
-    [userId]
+    vals
   ).then((rows) => rows.map(normalizeCartRow));
+};
 
 const getItemById = (id, userId) =>
   db.findOne('SELECT * FROM cart_items WHERE id = ? AND user_id = ?', [id, userId]).then(normalizeCartRow);

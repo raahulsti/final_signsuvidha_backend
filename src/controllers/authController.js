@@ -8,10 +8,23 @@ const db          = require('../config/db');
 
 exports.register = async (req, res, next) => {
   try {
-    const { userId, otp } = await authService.register(req.body);
-    const data = { user_id: userId, is_active: req.body.role === 'customer' ? 0 : 1 };
-    if (req.body.role === 'customer') data.verification_required = true;
+    const result = await authService.register(req.body);
+    const { userId, otp, pendingVerification } = result;
+    const data = {
+      user_id: userId,
+      is_active: pendingVerification ? 0 : (req.body.role === 'customer' ? 0 : 1),
+    };
+    if (req.body.role === 'customer' || pendingVerification) {
+      data.verification_required = true;
+      data.status = 2;
+    }
+    if (req.body.profile_image_url && !pendingVerification) {
+      data.profile_image_url = req.body.profile_image_url;
+    }
     if (process.env.NODE_ENV === 'development' && otp) data.otp = otp;
+    if (pendingVerification) {
+      return success(res, data, 'Registration pending. OTP sent again. Please verify to activate your account.');
+    }
     return created(res, data, req.body.role === 'customer'
       ? 'Registration initiated. Verify OTP to activate account'
       : 'Registration successful');
@@ -30,8 +43,46 @@ exports.sendOtp = async (req, res, next) => {
     const { email, phone, purpose } = req.body;
     const contactType = email ? 'email' : 'phone';
     const contact     = email || phone;
+
+    if (purpose === 'login' && contactType === 'phone') {
+      const customer = await userModel.findCustomerByPhone(phone);
+      if (!customer) {
+        return res.status(200).json({
+          success: false,
+          message: 'Mobile number is not registered. Please register to continue.',
+          data: { status: 0 },
+        });
+      }
+
+      if (!customer.is_active) {
+        const otp = await authService.sendOtp({
+          userId: customer.id,
+          contact,
+          contactType: 'phone',
+          purpose: 'register',
+        });
+        const resp = { status: 2, verification_pending: true };
+        if (process.env.NODE_ENV === 'development' && otp) resp.otp = otp;
+        return success(
+          res,
+          resp,
+          'Registration pending. Please verify OTP to activate your account.'
+        );
+      }
+
+      const otp = await authService.sendOtp({
+        userId: customer.id,
+        contact,
+        contactType,
+        purpose: 'login',
+      });
+      const resp = { status: 1 };
+      if (process.env.NODE_ENV === 'development' && otp) resp.otp = otp;
+      return success(res, resp, 'OTP sent successfully');
+    }
+
     const otp = await authService.sendOtp({ contact, contactType, purpose });
-    const resp = process.env.NODE_ENV === 'development' ? { otp } : {};
+    const resp = process.env.NODE_ENV === 'development' && otp ? { otp } : {};
     return success(res, resp, 'OTP sent successfully');
   } catch (err) { next(err); }
 };
@@ -81,6 +132,8 @@ exports.verifyOtp = async (req, res, next) => {
           email: latestUser.email,
           phone: latestUser.phone,
           gender: latestUser.gender,
+          date_of_birth: latestUser.date_of_birth || null,
+          profile_image_url: latestUser.profile_image_url || null,
           roles: roleArr,
         },
         accessToken,
@@ -169,6 +222,16 @@ exports.logout = async (req, res, next) => {
 
 exports.getMe = async (req, res, next) => {
   try {
-    return success(res, { ...req.user });
+    return success(res, {
+      id:                req.user.id,
+      name:              req.user.name,
+      email:             req.user.email,
+      phone:             req.user.phone,
+      gender:            req.user.gender ?? null,
+      date_of_birth:     req.user.date_of_birth ?? null,
+      profile_image_url: req.user.profile_image_url ?? null,
+      is_active:         req.user.is_active,
+      roles:             req.user.roles,
+    });
   } catch (err) { next(err); }
 };

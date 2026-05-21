@@ -5,17 +5,28 @@ const authModel  = require('../models/authModel');
 const { generateAccessToken, generateRefreshToken } = require('../config/jwt');
 const { generateOTP } = require('../utils/helpers');
 
-const register = async ({ name, email, phone, gender, password, role, purpose }) => {
+const register = async ({ name, email, phone, gender, date_of_birth, profile_image_url, password, role, purpose }) => {
   if (purpose !== 'register') {
     const err = new Error('Invalid purpose for registration'); err.statusCode = 400; throw err;
+  }
+  const existingByPhone = await userModel.findByPhone(phone);
+  if (existingByPhone) {
+    const roles = await userModel.getRoles(existingByPhone.id);
+    const isCustomer = roles.some((r) => r.name === 'customer');
+    if (isCustomer && !existingByPhone.is_active) {
+      const otp = await sendOtp({
+        userId: existingByPhone.id,
+        contact: phone,
+        contactType: 'phone',
+        purpose: 'register',
+      });
+      return { userId: existingByPhone.id, otp, pendingVerification: true };
+    }
+    const err = new Error('Phone already registered'); err.statusCode = 400; throw err;
   }
   const existingByEmail = await userModel.findByEmail(email);
   if (existingByEmail) {
     const err = new Error('Email already registered'); err.statusCode = 400; throw err;
-  }
-  const existingByPhone = await userModel.findByPhone(phone);
-  if (existingByPhone) {
-    const err = new Error('Phone already registered'); err.statusCode = 400; throw err;
   }
 
   if (role !== 'customer' && !password) {
@@ -26,6 +37,8 @@ const register = async ({ name, email, phone, gender, password, role, purpose })
     email,
     phone,
     gender,
+    date_of_birth: date_of_birth || null,
+    profile_image_url: profile_image_url || null,
     password,
     is_active: role === 'customer' ? 0 : 1,
   });

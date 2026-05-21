@@ -27,7 +27,8 @@ const authenticate = async (req, res, next) => {
 
     // Get user
     const user = await findOne(
-      'SELECT id, name, email, phone, gender, is_active FROM users WHERE id = ?',
+      `SELECT id, name, email, phone, gender, date_of_birth, profile_image_url, is_active
+       FROM users WHERE id = ?`,
       [decoded.user_id]
     );
     if (!user || !user.is_active) return unauthorized(res, 'Account not found or inactive');

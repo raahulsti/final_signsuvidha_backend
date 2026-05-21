@@ -56,6 +56,7 @@ module.exports = {
     IMAGE_ASSETS:    'image-assets',
     LISTED_PRODUCTS: 'listed-products',
     USER_UPLOADS:    'user-uploads',
+    CUSTOMER_PROFILES: 'customer-profiles',
     VENDOR_LOGOS:    'vendor-logos',
     PREVIEWS:        'previews',
     ILLUMINATION:    'illumination',

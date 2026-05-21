@@ -6,6 +6,8 @@ const register = Joi.object({
   phone:    Joi.string().pattern(/^[6-9]\d{9}$/).required()
               .messages({ 'string.pattern.base': 'Enter a valid 10-digit Indian mobile number' }),
   gender:   Joi.string().valid('male', 'female', 'other').required(),
+  date_of_birth: Joi.date().iso().max('now').optional().allow(null, '')
+    .messages({ 'date.max': 'Date of birth cannot be in the future' }),
   purpose:  Joi.string().valid('register').required(),
   role:     Joi.string().valid('vendor', 'customer').required(),
   password: Joi.when('role', {

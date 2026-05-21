@@ -87,10 +87,43 @@ const applyCartUploadedFiles = (req, _res, next) => {
   next();
 };
 
+/** Profile photo: accept common mobile field names */
+const PROFILE_IMAGE_FIELDS = [
+  { name: 'profile_image', maxCount: 1 },
+  { name: 'image', maxCount: 1 },
+  { name: 'photo', maxCount: 1 },
+];
+
+const createProfileImageUploader = (folder, allowedTypes = ALLOWED_IMAGE_TYPES, maxSizeMB = 5) =>
+  createUploader(folder, allowedTypes, maxSizeMB).fields(PROFILE_IMAGE_FIELDS);
+
+const pickUploadedProfileFile = (req) => {
+  if (req.file?.location) return req.file;
+  if (!req.files) return null;
+  if (Array.isArray(req.files)) {
+    return req.files.find((f) => f?.location) || null;
+  }
+  for (const key of ['profile_image', 'image', 'photo']) {
+    const f = req.files[key]?.[0];
+    if (f?.location) return f;
+  }
+  return null;
+};
+
+/** Map uploaded profile file → profile_image_url (run after Joi validate so stripUnknown does not remove it) */
+const applyProfileImageUpload = (req, _res, next) => {
+  const file = pickUploadedProfileFile(req);
+  if (file?.location) req.body.profile_image_url = file.location;
+  next();
+};
+
 module.exports = {
   createUploader,
   createCartUploader,
+  createProfileImageUploader,
   applyCartUploadedFiles,
+  applyProfileImageUpload,
+  pickUploadedProfileFile,
   ALLOWED_IMAGE_TYPES,
   ALLOWED_FONT_TYPES,
 };
