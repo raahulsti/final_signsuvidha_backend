@@ -7,6 +7,10 @@ const isLollipopItem = (item) =>
   String(item.product_type_id) === String(LOLLIPOP_PRODUCT_TYPE_ID)
   || item.product_type_slug === PRODUCT_SLUGS.LOLLIPOP_SIGN;
 
+const isPylonItem = (item) =>
+  item.product_type_slug === PRODUCT_SLUGS.PYLON_SIGN
+  || !!item.pylon_id;
+
 const isListedItem = (item) => !!item.listed_product_id;
 
 const calculateListedProductPrice = async (item) => {
@@ -144,6 +148,73 @@ const calculateLollipopSignPrice = async (item, vendorId = null) => {
   };
 };
 
+/** Pylon sign: category flat price + (tiles count × tile unit price). */
+const calculatePylonSignPrice = async (item, vendorId = null) => {
+  const { pylon_category_id, pylon_tiles_count, quantity = 1 } = item;
+  const tilesCount = Math.max(0, parseInt(pylon_tiles_count, 10) || 0);
+
+  let categoryPrice = 0;
+  let tilesUnitPrice = 0;
+
+  if (pylon_category_id) {
+    const cat = await db.findOne(
+      `SELECT pc.admin_category_price, pc.admin_tiles_price, pc.pylon_id, py.product_type_id
+       FROM pylon_categories pc
+       INNER JOIN pylons py ON py.id = pc.pylon_id
+       WHERE pc.id = ? AND pc.is_active = 1 AND py.is_active = 1`,
+      [pylon_category_id]
+    );
+    if (cat && String(cat.product_type_id) === String(item.product_type_id)) {
+      categoryPrice = parseFloat(cat.admin_category_price || 0);
+      tilesUnitPrice = parseFloat(cat.admin_tiles_price || 0);
+      if (vendorId) {
+        const vp = await vendorPricingModel.getPylonCategoryPrice(vendorId, pylon_category_id);
+        if (vp) {
+          categoryPrice = parseFloat(vp.category_price);
+          tilesUnitPrice = parseFloat(vp.tiles_price);
+        }
+      }
+    }
+  }
+
+  const categoryCost = parseFloat(categoryPrice.toFixed(2));
+  const tilesCost = parseFloat((tilesCount * tilesUnitPrice).toFixed(2));
+  const unitPrice = parseFloat((categoryCost + tilesCost).toFixed(2));
+  const totalPrice = parseFloat((unitPrice * (parseInt(quantity, 10) || 1)).toFixed(2));
+
+  return {
+    area_sqft: 0,
+    price_per_sqft: 0,
+    material_cost: 0,
+    material_style_price_per_sqft: 0,
+    material_style_cost: 0,
+    frame_price_per_sqft: 0,
+    frame_cost: 0,
+    wallpaper_price_per_sqft: 0,
+    wallpaper_cost: 0,
+    base_price_per_sqft: 0,
+    base_cost: 0,
+    thickness_price_per_sqft: 0,
+    thickness_cost: 0,
+    element_cost: 0,
+    add_border_base_price: 0,
+    add_border_lit_extra: 0,
+    add_border_cost: 0,
+    lollipop_element_cost: 0,
+    pylon_category_price: categoryPrice,
+    pylon_tiles_price: tilesUnitPrice,
+    pylon_category_cost: categoryCost,
+    pylon_tiles_cost: tilesCost,
+    color_extra: 0,
+    font_extra: 0,
+    illumination_cost: 0,
+    illumination_rate_per_sqft: 0,
+    unit_price: unitPrice,
+    quantity: parseInt(quantity, 10) || 1,
+    total_price: totalPrice,
+  };
+};
+
 /**
  * Area in square feet from width × height in the customer's chosen unit.
  * dimension_units.conversion_to_sqft = area conversion factor to sq ft.
@@ -174,6 +245,9 @@ const calculateItemPrice = async (item, vendorId = null) => {
   }
   if (isLollipopItem(item)) {
     return calculateLollipopSignPrice(item, vendorId);
+  }
+  if (isPylonItem(item)) {
+    return calculatePylonSignPrice(item, vendorId);
   }
 
   const {
@@ -395,6 +469,10 @@ const calculateItemPrice = async (item, vendorId = null) => {
     add_border_lit_extra: 0,
     add_border_cost: 0,
     lollipop_element_cost: 0,
+    pylon_category_price: 0,
+    pylon_tiles_price: 0,
+    pylon_category_cost: 0,
+    pylon_tiles_cost: 0,
     unit_price: unitPrice,
     quantity: parseInt(quantity, 10),
     total_price: totalPrice,

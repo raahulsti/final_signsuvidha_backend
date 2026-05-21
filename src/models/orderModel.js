@@ -24,6 +24,8 @@ const createItem = (conn, item) => {
     product_type_id, material_id, material_style_id, frame_id, wallpaper_id,
     add_border_id, border_is_lit,
     lollipop_element_id,
+    pylon_id, pylon_category_id, pylon_tiles_count,
+    pylon_category_price, pylon_tiles_price, pylon_category_cost, pylon_tiles_cost,
     base_id, thickness_id, element_id, color_id, font_id,
     illumination_option_id, text_layers, height, width, dimension_unit_id,
     uploaded_image_url, price_per_sqft, material_cost, material_style_price_per_sqft, material_style_cost,
@@ -39,6 +41,8 @@ const createItem = (conn, item) => {
   const columns = [
     'order_id', 'listed_product_id', 'listed_product_size', 'product_type_id', 'material_id', 'material_style_id',
     'frame_id', 'wallpaper_id', 'add_border_id', 'border_is_lit', 'lollipop_element_id',
+    'pylon_id', 'pylon_category_id', 'pylon_tiles_count',
+    'pylon_category_price', 'pylon_tiles_price', 'pylon_category_cost', 'pylon_tiles_cost',
     'base_id', 'thickness_id', 'element_id', 'color_id', 'font_id', 'illumination_option_id', 'text_layers',
     'height', 'width', 'dimension_unit_id', 'uploaded_image_url',
     'price_per_sqft', 'material_cost', 'material_style_price_per_sqft', 'material_style_cost',
@@ -52,6 +56,8 @@ const createItem = (conn, item) => {
     order_id, listed_product_id || null, listed_product_size || null,
     product_type_id, material_id || null, material_style_id || null, frame_id || null, wallpaper_id || null,
     add_border_id || null, border_is_lit ? 1 : 0, lollipop_element_id || null,
+    pylon_id || null, pylon_category_id || null, pylon_tiles_count ?? 0,
+    pylon_category_price ?? 0, pylon_tiles_price ?? 0, pylon_category_cost ?? 0, pylon_tiles_cost ?? 0,
     base_id || null, thickness_id || null, element_id || null, color_id || null, font_id || null,
     illumination_option_id || null,
     text_layers ? JSON.stringify(text_layers) : null,
@@ -117,6 +123,9 @@ const ORDER_ITEMS_SELECT = `
          ab.height AS add_border_height, ab.width AS add_border_width, ab.file_url AS add_border_file_url,
          le.name AS lollipop_element_name, le.description AS lollipop_element_description,
          le.thumbnail_url AS lollipop_element_thumbnail_url, le.file_url AS lollipop_element_file_url,
+         py.name AS pylon_name, py.description AS pylon_description,
+         py.thumbnail_url AS pylon_thumbnail_url, py.file_url AS pylon_file_url,
+         pc.name AS pylon_category_name, pc.tiles_name AS pylon_tiles_name,
          b.name AS base_name, b.description AS base_description, b.file_url AS base_file_url,
          th.name AS thickness_name, th.description AS thickness_description, th.file_url AS thickness_file_url,
          e.name AS element_name, e.description AS element_description, e.file_url AS element_file_url,
@@ -126,16 +135,21 @@ const ORDER_ITEMS_SELECT = `
          io.description AS illumination_description,
          du.unit_name, du.conversion_to_sqft,
          lp.name AS listed_product_name, lp.description AS listed_product_description,
-         lp.thumbnail_url AS listed_product_thumbnail
+         lp.thumbnail_url AS listed_product_thumbnail,
+         lpv.height AS listed_product_height,
+         lpv.width AS listed_product_width
   FROM order_items oi
   LEFT JOIN product_types pt ON pt.id = oi.product_type_id
   LEFT JOIN listed_products lp ON lp.id = oi.listed_product_id
+  LEFT JOIN listed_product_variants lpv ON lpv.listed_product_id = oi.listed_product_id AND lpv.size = oi.listed_product_size
   LEFT JOIN materials m ON m.id = oi.material_id
   LEFT JOIN material_styles ms ON ms.id = oi.material_style_id
   LEFT JOIN frames fr ON fr.id = oi.frame_id
   LEFT JOIN wallpapers wp ON wp.id = oi.wallpaper_id
   LEFT JOIN add_borders ab ON ab.id = oi.add_border_id
   LEFT JOIN lollipop_elements le ON le.id = oi.lollipop_element_id
+  LEFT JOIN pylons py ON py.id = oi.pylon_id
+  LEFT JOIN pylon_categories pc ON pc.id = oi.pylon_category_id
   LEFT JOIN bases b ON b.id = oi.base_id
   LEFT JOIN thicknesses th ON th.id = oi.thickness_id
   LEFT JOIN elements e ON e.id = oi.element_id
@@ -182,11 +196,14 @@ const getAll = ({ status, vendorId, offset, limit }) => {
   if (vendorId) { conds.push('o.vendor_id = ?'); vals.push(vendorId); }
   const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
   const sql = `
-    SELECT o.*, inv.invoice_number, u.name AS customer_name, v.business_name AS vendor_name
+    SELECT o.*, inv.invoice_number,
+           u.name AS customer_name, u.email AS customer_email, u.phone AS customer_phone,
+           v.business_name AS vendor_name, ss.name AS shipping_service_name
     FROM orders o
     LEFT JOIN order_invoice_numbers inv ON inv.order_id = o.id
-    LEFT JOIN users u   ON u.id = o.customer_user_id
+    LEFT JOIN users u ON u.id = o.customer_user_id
     LEFT JOIN vendors v ON v.id = o.vendor_id
+    LEFT JOIN shipping_services ss ON ss.id = o.shipping_service_id
     ${where}
     ORDER BY o.created_at DESC LIMIT ? OFFSET ?
   `;
@@ -199,9 +216,13 @@ const getByVendor = ({ vendorId, status, offset, limit }) => {
   if (status) { conds.push('o.status = ?'); vals.push(status); }
   const sql = `
     SELECT o.*, inv.invoice_number,
-           u.name AS customer_name, u.email AS customer_email, u.phone AS customer_phone
-    FROM orders o LEFT JOIN users u ON u.id = o.customer_user_id
+           u.name AS customer_name, u.email AS customer_email, u.phone AS customer_phone,
+           v.business_name AS vendor_name, ss.name AS shipping_service_name
+    FROM orders o
+    LEFT JOIN users u ON u.id = o.customer_user_id
     LEFT JOIN order_invoice_numbers inv ON inv.order_id = o.id
+    LEFT JOIN vendors v ON v.id = o.vendor_id
+    LEFT JOIN shipping_services ss ON ss.id = o.shipping_service_id
     WHERE ${conds.join(' AND ')}
     ORDER BY o.created_at DESC LIMIT ? OFFSET ?
   `;

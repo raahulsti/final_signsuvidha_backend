@@ -106,6 +106,27 @@ exports.upsertLollipopElementPrice = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+exports.getAllPylonCategoryPrices = async (req, res, next) => {
+  try {
+    const vendorId = await getVendorId(req.user.id);
+    return success(res, await vendorPricingModel.getAllPylonCategoryPrices(vendorId));
+  } catch (err) { next(err); }
+};
+
+exports.upsertPylonCategoryPrice = async (req, res, next) => {
+  try {
+    const vendorId = await getVendorId(req.user.id);
+    const { category_price, tiles_price } = req.body;
+    await vendorPricingModel.upsertPylonCategoryPrice(
+      vendorId,
+      req.params.pylonCategoryId,
+      category_price,
+      tiles_price
+    );
+    return success(res, {}, 'Pylon category price updated');
+  } catch (err) { next(err); }
+};
+
 exports.getAllBasePrices = async (req, res, next) => {
   try {
     const vendorId = await getVendorId(req.user.id);

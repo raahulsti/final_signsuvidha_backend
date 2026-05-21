@@ -63,5 +63,6 @@ module.exports = {
     WALLPAPERS:      'wallpapers',
     ADD_BORDERS:     'add-borders',
     LOLLIPOP_ELEMENTS: 'lollipop-elements',
+    PYLONS:          'pylons',
   },
 };

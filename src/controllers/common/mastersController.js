@@ -6,6 +6,7 @@ const frameModel = require('../../models/frameModel');
 const wallpaperModel = require('../../models/wallpaperModel');
 const addBorderModel = require('../../models/addBorderModel');
 const lollipopElementModel = require('../../models/lollipopElementModel');
+const pylonModel = require('../../models/pylonModel');
 const baseModel       = require('../../models/baseModel');
 const thicknessModel  = require('../../models/thicknessModel');
 const elementModel    = require('../../models/elementModel');
@@ -77,6 +78,14 @@ exports.getLollipopElements = async (req, res, next) => {
       offset: 0,
       limit: 100,
     });
+    return success(res, rows);
+  } catch (e) { next(e); }
+};
+
+exports.getPylons = async (req, res, next) => {
+  try {
+    const { product_type_id } = req.query;
+    const rows = await pylonModel.getActiveList({ productTypeId: product_type_id });
     return success(res, rows);
   } catch (e) { next(e); }
 };

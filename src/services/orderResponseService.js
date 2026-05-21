@@ -62,6 +62,8 @@ const toNestedListedOrderItem = (item) => ({
     name: item.listed_product_name,
     description: item.listed_product_description,
     size: item.listed_product_size,
+    height: nullableStr(item.listed_product_height),
+    width: nullableStr(item.listed_product_width),
     thumbnail_url: item.listed_product_thumbnail || null,
   },
   product_type: item.product_type_id ? {
@@ -97,7 +99,7 @@ const toNestedOrderItem = (item) => {
   },
   images: {
     uploaded_image_url: nullableStr(item.uploaded_image_url),
-    preview_image_url: nullableStr(item.preview_image_url),
+    preview_image_url: nullableStr(item.preview_image_url || item.pylon_file_url || item.pylon_thumbnail_url),
   },
   product_type: {
     id: item.product_type_id,
@@ -145,6 +147,21 @@ const toNestedOrderItem = (item) => {
     file_url: nullableStr(item.lollipop_element_file_url),
     thumbnail_url: nullableStr(item.lollipop_element_thumbnail_url),
   } : null,
+  pylon: item.pylon_id ? {
+    id: item.pylon_id,
+    name: item.pylon_name,
+    description: nullableStr(item.pylon_description),
+    thumbnail_url: nullableStr(item.pylon_thumbnail_url),
+    file_url: nullableStr(item.pylon_file_url),
+  } : null,
+  pylon_category: item.pylon_category_id ? {
+    id: item.pylon_category_id,
+    name: item.pylon_category_name,
+    tiles_name: item.pylon_tiles_name,
+    category_price: parseFloat(item.pylon_category_price || 0),
+    tiles_price: parseFloat(item.pylon_tiles_price || 0),
+  } : null,
+  pylon_tiles_count: item.pylon_id != null ? (parseInt(item.pylon_tiles_count, 10) || 0) : null,
   base: item.base_id ? {
     id: item.base_id,
     name: item.base_name,
@@ -195,6 +212,10 @@ const toNestedOrderItem = (item) => {
       add_border_lit_extra: parseFloat(item.add_border_lit_extra || 0),
       add_border_cost: parseFloat(item.add_border_cost || 0),
       lollipop_element_cost: parseFloat(item.lollipop_element_cost || 0),
+      pylon_category_price: parseFloat(item.pylon_category_price || 0),
+      pylon_tiles_price: parseFloat(item.pylon_tiles_price || 0),
+      pylon_category_cost: parseFloat(item.pylon_category_cost || 0),
+      pylon_tiles_cost: parseFloat(item.pylon_tiles_cost || 0),
       base_price_per_sqft: parseFloat(item.base_price_per_sqft || 0),
       base_cost: parseFloat(item.base_cost || 0),
       thickness_price_per_sqft: parseFloat(item.thickness_price_per_sqft || 0),
@@ -206,7 +227,8 @@ const toNestedOrderItem = (item) => {
   },
   is_lollipop: String(item.product_type_id) === String(LOLLIPOP_PRODUCT_TYPE_ID)
     || item.product_type_slug === PRODUCT_SLUGS.LOLLIPOP_SIGN,
-};
+  is_pylon: item.product_type_slug === PRODUCT_SLUGS.PYLON_SIGN || !!item.pylon_id,
+  };
 };
 
 const buildSeller = async (order) => {

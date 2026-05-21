@@ -50,8 +50,13 @@ const lollipopElementPrice = Joi.object({
   price: Joi.number().min(0).required(),
 });
 
+const pylonCategoryPrice = Joi.object({
+  category_price: Joi.number().min(0).required(),
+  tiles_price:    Joi.number().min(0).required(),
+});
+
 module.exports = {
   materialPrice, basePrice, thicknessPrice, elementPrice, colorPrice, fontPrice,
   illuminationPrice, materialStylePrice, framePrice, wallpaperPrice,
-  addBorderPrice, lollipopElementPrice,
+  addBorderPrice, lollipopElementPrice, pylonCategoryPrice,
 };

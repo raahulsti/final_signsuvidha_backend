@@ -9,6 +9,8 @@ const parseVariantsFromBody = (body) =>
     admin_price: body[`price_${size}`] !== undefined && body[`price_${size}`] !== ''
       ? parseFloat(body[`price_${size}`])
       : undefined,
+    height: body[`height_${size}`],
+    width: body[`width_${size}`],
   })).filter((v) => v.admin_price !== undefined);
 
 const parseRemoveImageIds = (body) => {

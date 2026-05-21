@@ -402,6 +402,46 @@ const getAllLollipopElementPrices = (vendorId) =>
     [vendorId]
   );
 
+// ── Pylon category (category + tiles flat price) ───────────────
+const getPylonCategoryPrice = (vendorId, pylonCategoryId) =>
+  db.findOne(
+    `SELECT category_price, tiles_price FROM vendor_pylon_category_pricing
+     WHERE vendor_id = ? AND pylon_category_id = ? AND is_active = 1`,
+    [vendorId, pylonCategoryId]
+  );
+
+const upsertPylonCategoryPrice = (vendorId, pylonCategoryId, categoryPrice, tilesPrice) =>
+  db.execute(
+    `INSERT INTO vendor_pylon_category_pricing (vendor_id, pylon_category_id, category_price, tiles_price)
+     VALUES (?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE category_price = ?, tiles_price = ?, updated_at = NOW()`,
+    [vendorId, pylonCategoryId, categoryPrice, tilesPrice, categoryPrice, tilesPrice]
+  );
+
+const getAllPylonCategoryPrices = (vendorId) =>
+  db.execute(
+    `SELECT
+      pc.id AS pylon_category_id,
+      pc.pylon_id,
+      pc.name AS category_name,
+      pc.admin_category_price,
+      pc.tiles_name,
+      pc.admin_tiles_price,
+      py.name AS pylon_name,
+      py.product_type_id,
+      pt.name AS product_type_name,
+      vpc.category_price,
+      vpc.tiles_price
+     FROM pylon_categories pc
+     INNER JOIN pylons py ON py.id = pc.pylon_id AND py.is_active = 1
+     LEFT JOIN product_types pt ON pt.id = py.product_type_id
+     LEFT JOIN vendor_pylon_category_pricing vpc
+       ON vpc.pylon_category_id = pc.id AND vpc.vendor_id = ? AND vpc.is_active = 1
+     WHERE pc.is_active = 1
+     ORDER BY py.sort_order ASC, py.name ASC, pc.sort_order ASC, pc.name ASC`,
+    [vendorId]
+  );
+
 module.exports = {
   getBasePrice, upsertBasePrice, getAllBasePrices,
   getThicknessPrice, upsertThicknessPrice, getAllThicknessPrices,
@@ -415,4 +455,5 @@ module.exports = {
   getIlluminationPrice, upsertIlluminationPrice, getAllIlluminationPrices,
   getAddBorderPrice, upsertAddBorderPrice, getAllAddBorderPrices,
   getLollipopElementPrice, upsertLollipopElementPrice, getAllLollipopElementPrices,
+  getPylonCategoryPrice, upsertPylonCategoryPrice, getAllPylonCategoryPrices,
 };

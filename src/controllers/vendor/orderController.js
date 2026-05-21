@@ -14,7 +14,8 @@ exports.getOrders = async (req, res, next) => {
     const { status, page = 1, limit = 20 } = req.query;
     const { offset, limit: lim } = getPagination(page, limit);
     const { rows, total } = await orderModel.getByVendor({ vendorId: vendor.id, status, offset, limit: lim });
-    return paginated(res, rows, getPaginationMeta(total, page, lim));
+    const enriched = await enrichOrdersForPanel(rows);
+    return paginated(res, enriched, getPaginationMeta(total, page, lim));
   } catch (err) { next(err); }
 };
 

@@ -16,6 +16,13 @@ const isLollipopOrderItem = (item) =>
   String(item.product_type_id) === String(LOLLIPOP_PRODUCT_TYPE_ID)
   || item.product_type_slug === PRODUCT_SLUGS.LOLLIPOP_SIGN;
 
+const isPylonOrderItem = (item) =>
+  item.product_type_slug === PRODUCT_SLUGS.PYLON_SIGN
+  || !!item.pylon_id;
+
+const isFixedPriceOrderItem = (item) =>
+  isLollipopOrderItem(item) || isPylonOrderItem(item) || !!item.listed_product_id;
+
 const getAdminSellerId = async () => {
   const admin = await db.findOne(
     `SELECT u.id
@@ -291,6 +298,13 @@ exports.checkout = async (req, res, next) => {
             add_border_id: item.add_border_id,
             border_is_lit: item.border_is_lit,
             lollipop_element_id: item.lollipop_element_id,
+            pylon_id: item.pylon_id || null,
+            pylon_category_id: item.pylon_category_id || null,
+            pylon_tiles_count: item.pylon_tiles_count ?? 0,
+            pylon_category_price: item.pylon_category_price,
+            pylon_tiles_price: item.pylon_tiles_price,
+            pylon_category_cost: item.pylon_category_cost,
+            pylon_tiles_cost: item.pylon_tiles_cost,
             add_border_base_price: item.add_border_base_price,
             add_border_lit_extra: item.add_border_lit_extra,
             add_border_cost: item.add_border_cost,
@@ -302,9 +316,9 @@ exports.checkout = async (req, res, next) => {
             font_id: item.font_id,
             illumination_option_id: item.illumination_option_id,
             text_layers: item.text_layers,
-            height: (isLollipopOrderItem(item) || item.listed_product_id) ? 0 : (item.height || 0),
-            width: (isLollipopOrderItem(item) || item.listed_product_id) ? 0 : (item.width || 0),
-            dimension_unit_id: (isLollipopOrderItem(item) || item.listed_product_id) ? null : (item.dimension_unit_id || null),
+            height: isFixedPriceOrderItem(item) ? 0 : (item.height || 0),
+            width: isFixedPriceOrderItem(item) ? 0 : (item.width || 0),
+            dimension_unit_id: isFixedPriceOrderItem(item) ? null : (item.dimension_unit_id || null),
             uploaded_image_url: item.uploaded_image_url,
             price_per_sqft: item.price_per_sqft,
             material_cost: item.material_cost,
@@ -396,14 +410,8 @@ exports.getOrders = async (req, res, next) => {
     const { rows, total } = await orderModel.getByCustomer({
       userId: req.user.id, status, offset, limit: lim,
     });
-    const shaped = rows.map((r) => ({
-      ...r,
-      order_number: r.payment_status === 'paid' ? r.order_number : null,
-      invoice_number: r.payment_status === 'paid' ? r.invoice_number : null,
-          seller_type: r.seller_type || (r.vendor_id ? 'vendor' : 'admin'),
-      seller_id: r.seller_id || (r.vendor_id ? r.vendor_id : adminSellerId),
-    }));
-    return paginated(res, shaped, getPaginationMeta(total, page, lim));
+    const enriched = await enrichOrders(rows, adminSellerId, { maskNumbers: true, includeCustomer: false });
+    return paginated(res, enriched, getPaginationMeta(total, page, lim));
   } catch (err) { next(err); }
 };
 

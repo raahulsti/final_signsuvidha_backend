@@ -8,6 +8,7 @@ router.get('/frames',             ctrl.getFrames);
 router.get('/wallpapers',         ctrl.getWallpapers);
 router.get('/add-borders',        ctrl.getAddBorders);
 router.get('/lollipop-elements',  ctrl.getLollipopElements);
+router.get('/pylons',             ctrl.getPylons);
 router.get('/bases',              ctrl.getBases);
 router.get('/thicknesses',       ctrl.getThicknesses);
 router.get('/elements',           ctrl.getElements);

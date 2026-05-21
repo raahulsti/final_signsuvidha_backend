@@ -47,6 +47,12 @@ const getCartByUser = (userId) =>
             le.description AS lollipop_element_description,
             le.thumbnail_url AS lollipop_element_thumbnail_url,
             le.file_url AS lollipop_element_file_url,
+            py.name AS pylon_name, py.description AS pylon_description,
+            py.thumbnail_url AS pylon_thumbnail_url, py.file_url AS pylon_file_url,
+            pc.name AS pylon_category_name,
+            pc.admin_category_price AS pylon_category_admin_price,
+            pc.tiles_name AS pylon_tiles_name,
+            pc.admin_tiles_price AS pylon_tiles_admin_price,
             b.name    AS base_name,         b.admin_price_per_sqft AS base_admin_price_per_sqft, b.description AS base_description,
             b.file_url AS base_file_url,
             th.name   AS thickness_name,    th.admin_price_per_sqft AS thickness_admin_price_per_sqft, th.description AS thickness_description,
@@ -62,7 +68,9 @@ const getCartByUser = (userId) =>
             v.business_name AS vendor_name,
             lp.name AS listed_product_name, lp.description AS listed_product_description,
             lp.thumbnail_url AS listed_product_thumbnail,
-            lpv.admin_price AS listed_variant_admin_price
+            lpv.admin_price AS listed_variant_admin_price,
+            lpv.height AS listed_variant_height,
+            lpv.width AS listed_variant_width
      FROM cart_items ci
      LEFT JOIN product_types  pt ON pt.id = ci.product_type_id
      LEFT JOIN listed_products lp ON lp.id = ci.listed_product_id
@@ -75,6 +83,8 @@ const getCartByUser = (userId) =>
      LEFT JOIN wallpapers      wp ON wp.id = ci.wallpaper_id
      LEFT JOIN add_borders     ab ON ab.id = ci.add_border_id
      LEFT JOIN lollipop_elements le ON le.id = ci.lollipop_element_id
+     LEFT JOIN pylons py ON py.id = ci.pylon_id
+     LEFT JOIN pylon_categories pc ON pc.id = ci.pylon_category_id
      LEFT JOIN bases              b ON b.id  = ci.base_id
      LEFT JOIN thicknesses       th ON th.id = ci.thickness_id
      LEFT JOIN elements         e ON e.id  = ci.element_id
@@ -93,6 +103,7 @@ const getItemById = (id, userId) =>
 
 const addItem = ({ user_id, product_type_id, material_id, material_style_id, frame_id, wallpaper_id,
                    add_border_id, border_is_lit, lollipop_element_id,
+                   pylon_id, pylon_category_id, pylon_tiles_count,
                    base_id, thickness_id, element_id, color_id, font_id,
                    illumination_option_id, text_layers, height, width, dimension_unit_id,
                    uploaded_image_url, preview_image_url, quantity }) =>
@@ -100,12 +111,14 @@ const addItem = ({ user_id, product_type_id, material_id, material_style_id, fra
     `INSERT INTO cart_items
        (user_id, product_type_id, material_id, material_style_id, frame_id, wallpaper_id,
         add_border_id, border_is_lit, lollipop_element_id,
+        pylon_id, pylon_category_id, pylon_tiles_count,
         base_id, thickness_id, element_id, color_id, font_id,
         illumination_option_id, text_layers, height, width, dimension_unit_id,
         uploaded_image_url, preview_image_url, quantity)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [user_id, product_type_id, material_id || null, material_style_id || null, frame_id || null, wallpaper_id || null,
      add_border_id || null, border_is_lit ? 1 : 0, lollipop_element_id || null,
+     pylon_id || null, pylon_category_id || null, Math.max(0, parseInt(pylon_tiles_count, 10) || 0),
      base_id || null, thickness_id || null, element_id || null,
      color_id || null, font_id || null, illumination_option_id || null,
      text_layers ? JSON.stringify(text_layers) : null,
@@ -115,6 +128,7 @@ const addItem = ({ user_id, product_type_id, material_id, material_style_id, fra
 
 const updateItem = (id, fields) => {
   const allowed = ['material_id','material_style_id','frame_id','wallpaper_id','add_border_id','border_is_lit','lollipop_element_id',
+                   'pylon_id','pylon_category_id','pylon_tiles_count',
                    'base_id','thickness_id','element_id','color_id','font_id','illumination_option_id',
                    'text_layers','height','width','dimension_unit_id','quantity',
                    'uploaded_image_url','preview_image_url','vendor_id'];

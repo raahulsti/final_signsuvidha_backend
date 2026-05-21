@@ -12,6 +12,7 @@ router.use('/frames',           require('./frames'));
 router.use('/wallpapers',       require('./wallpapers'));
 router.use('/add-borders',      require('./addBorders'));
 router.use('/lollipop-elements', require('./lollipopElements'));
+router.use('/pylons',            require('./pylons'));
 router.use('/bases',            require('./bases'));
 router.use('/thicknesses',      require('./thicknesses'));
 router.use('/elements',         require('./elements'));

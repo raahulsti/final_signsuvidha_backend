@@ -10,7 +10,7 @@ const getImages = (productId) =>
 const getVariants = (productId, { activeOnly = false } = {}) => {
   const cond = activeOnly ? ' AND is_active = 1' : '';
   return db.execute(
-    `SELECT id, listed_product_id, size, admin_price, is_active FROM listed_product_variants WHERE listed_product_id = ?${cond} ORDER BY FIELD(size, 'regular','medium','large')`,
+    `SELECT id, listed_product_id, size, admin_price, height, width, is_active FROM listed_product_variants WHERE listed_product_id = ?${cond} ORDER BY FIELD(size, 'regular','medium','large')`,
     [productId]
   );
 };
@@ -24,6 +24,8 @@ const toPublic = async (row) => {
   const prices = variants.map((v) => ({
     size: v.size,
     admin_price: parseFloat(v.admin_price || 0),
+    height: v.height || null,
+    width: v.width || null,
   }));
   const priceFrom = prices.length ? Math.min(...prices.map((p) => p.admin_price)) : 0;
   return {
@@ -76,16 +78,24 @@ const create = async ({ product_type_id, name, description, is_best_seller, sort
   return productId;
 };
 
+const normalizeDim = (v) => {
+  if (v == null || v === '') return null;
+  const s = String(v).trim();
+  return s === '' ? null : s;
+};
+
 const upsertVariants = async (productId, variants = []) => {
   for (const entry of variants) {
     if (!entry?.size || !LISTED_PRODUCT_SIZES.includes(entry.size)) continue;
     const price = parseFloat(entry.admin_price ?? 0);
     const isActive = entry.is_active !== false ? 1 : 0;
+    const height = normalizeDim(entry.height);
+    const width = normalizeDim(entry.width);
     await db.execute(
-      `INSERT INTO listed_product_variants (listed_product_id, size, admin_price, is_active)
-       VALUES (?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE admin_price = VALUES(admin_price), is_active = VALUES(is_active), updated_at = NOW()`,
-      [productId, entry.size, price, isActive]
+      `INSERT INTO listed_product_variants (listed_product_id, size, admin_price, height, width, is_active)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE admin_price = VALUES(admin_price), height = VALUES(height), width = VALUES(width), is_active = VALUES(is_active), updated_at = NOW()`,
+      [productId, entry.size, price, height, width, isActive]
     );
   }
 };

@@ -22,6 +22,9 @@ router.put('/add-borders/:addBorderId',         validate(v.addBorderPrice),    c
 router.get('/lollipop-elements',                ctrl.getAllLollipopElementPrices);
 router.put('/lollipop-elements/:lollipopElementId', validate(v.lollipopElementPrice), ctrl.upsertLollipopElementPrice);
 
+router.get('/pylon-categories',                       ctrl.getAllPylonCategoryPrices);
+router.put('/pylon-categories/:pylonCategoryId',    validate(v.pylonCategoryPrice), ctrl.upsertPylonCategoryPrice);
+
 // Base pricing (physical base, per sq ft)
 router.get('/bases',                            ctrl.getAllBasePrices);
 router.put('/bases/:baseId',                    validate(v.basePrice),         ctrl.upsertBasePrice);

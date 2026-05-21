@@ -9,6 +9,7 @@ const wallpaperModel = require('../../models/wallpaperModel');
 const { PRODUCT_SLUGS, LOLLIPOP_PRODUCT_TYPE_ID } = require('../../utils/constants');
 const addBorderModel = require('../../models/addBorderModel');
 const lollipopElementModel = require('../../models/lollipopElementModel');
+const pylonModel = require('../../models/pylonModel');
 const listedProductModel = require('../../models/listedProductModel');
 const { LISTED_PRODUCT_SIZES } = require('../../utils/constants');
 const { getVendorComparison, calculateItemPrice } = require('../../services/pricingService');
@@ -45,7 +46,8 @@ const toNestedCartItem = (item, pricing = null, adminSellerId = null) => ({
   },
   images: {
     uploaded_image_url: item.uploaded_image_url,
-    preview_image_url: item.preview_image_url,
+    preview_image_url: item.preview_image_url
+      || (item.pylon_id ? (item.pylon_file_url || item.pylon_thumbnail_url) : null),
   },
   product_type: {
     id: item.product_type_id,
@@ -101,6 +103,21 @@ const toNestedCartItem = (item, pricing = null, adminSellerId = null) => ({
     file_url: nullableDescription(item.lollipop_element_file_url),
     thumbnail_url: nullableDescription(item.lollipop_element_thumbnail_url),
   } : null,
+  pylon: item.pylon_id ? {
+    id: item.pylon_id,
+    name: item.pylon_name,
+    description: nullableDescription(item.pylon_description),
+    thumbnail_url: nullableDescription(item.pylon_thumbnail_url),
+    file_url: nullableDescription(item.pylon_file_url),
+  } : null,
+  pylon_category: item.pylon_category_id ? {
+    id: item.pylon_category_id,
+    name: item.pylon_category_name,
+    category_price: parseFloat(item.pylon_category_admin_price || 0),
+    tiles_name: item.pylon_tiles_name,
+    tiles_price: parseFloat(item.pylon_tiles_admin_price || 0),
+  } : null,
+  pylon_tiles_count: item.pylon_id ? (parseInt(item.pylon_tiles_count, 10) || 0) : null,
   base: item.base_id ? {
     id: item.base_id,
     name: item.base_name,
@@ -163,6 +180,10 @@ const toNestedCartItem = (item, pricing = null, adminSellerId = null) => ({
       add_border_lit_extra: pricing.add_border_lit_extra,
       add_border_cost: pricing.add_border_cost,
       lollipop_element_cost: pricing.lollipop_element_cost,
+      pylon_category_price: pricing.pylon_category_price,
+      pylon_tiles_price: pricing.pylon_tiles_price,
+      pylon_category_cost: pricing.pylon_category_cost,
+      pylon_tiles_cost: pricing.pylon_tiles_cost,
       base_price_per_sqft: pricing.base_price_per_sqft,
       base_cost: pricing.base_cost,
       thickness_price_per_sqft: pricing.thickness_price_per_sqft,
@@ -190,6 +211,8 @@ const toNestedListedCartItem = async (item, pricing, adminSellerId) => {
       name: item.listed_product_name,
       description: item.listed_product_description,
       size: item.listed_product_size,
+      height: item.listed_variant_height || null,
+      width: item.listed_variant_width || null,
       images: images.map((i) => i.file_url),
       thumbnail_url: images[0]?.file_url || item.listed_product_thumbnail || null,
     },
@@ -322,6 +345,58 @@ const validateMaterialStyleForProductType = async (materialStyleId, productTypeI
 const isLollipopProductType = (productTypeId, slug) =>
   String(productTypeId) === String(LOLLIPOP_PRODUCT_TYPE_ID) || slug === PRODUCT_SLUGS.LOLLIPOP_SIGN;
 
+const isPylonProductType = (productTypeId, slug) =>
+  slug === PRODUCT_SLUGS.PYLON_SIGN;
+
+const normalizePylonCartFields = (body) => {
+  if (body.category_id && !body.pylon_category_id) body.pylon_category_id = body.category_id;
+  if (body.tiles !== undefined && body.pylon_tiles_count === undefined) {
+    body.pylon_tiles_count = body.tiles;
+  }
+};
+
+/** Pylon: pylon + category + tiles count required. */
+const validatePylonCart = async ({ product_type_id, pylon_id, pylon_category_id, pylon_tiles_count }) => {
+  const pt = await db.findOne('SELECT slug FROM product_types WHERE id = ?', [product_type_id]);
+  if (!pt || !isPylonProductType(product_type_id, pt.slug)) return;
+
+  if (!pylon_id) {
+    const e = new Error('Select a pylon product');
+    e.statusCode = 400;
+    throw e;
+  }
+  if (!pylon_category_id) {
+    const e = new Error('Select a pylon category');
+    e.statusCode = 400;
+    throw e;
+  }
+  const tilesCount = parseInt(pylon_tiles_count, 10);
+  if (!Number.isInteger(tilesCount) || tilesCount < 0) {
+    const e = new Error('tiles count must be a non-negative integer');
+    e.statusCode = 400;
+    throw e;
+  }
+
+  const pylon = await pylonModel.getById(pylon_id);
+  if (!pylon || !pylon.is_active) {
+    const e = new Error('Selected pylon not found or inactive');
+    e.statusCode = 400;
+    throw e;
+  }
+  if (String(pylon.product_type_id) !== String(product_type_id)) {
+    const e = new Error('Selected pylon does not belong to this product type');
+    e.statusCode = 400;
+    throw e;
+  }
+
+  const category = await pylonModel.getCategoryById(pylon_category_id);
+  if (!category || !category.is_active || String(category.pylon_id) !== String(pylon_id)) {
+    const e = new Error('Selected pylon category not found or inactive');
+    e.statusCode = 400;
+    throw e;
+  }
+};
+
 /** Lollipop: border required; element only after border; no dimension unit required. */
 const validateLollipopCart = async ({ product_type_id, add_border_id, border_is_lit, lollipop_element_id }) => {
   const pt = await db.findOne('SELECT slug FROM product_types WHERE id = ?', [product_type_id]);
@@ -440,10 +515,19 @@ exports.addListedItem = async (req, res, next) => {
 exports.addItem = async (req, res, next) => {
   try {
     sanitizeOptionalImageFields(req.body);
+    normalizePylonCartFields(req.body);
     const ptRow = await db.findOne('SELECT slug FROM product_types WHERE id = ?', [req.body.product_type_id]);
     const isLollipop = isLollipopProductType(req.body.product_type_id, ptRow?.slug);
+    const isPylon = isPylonProductType(req.body.product_type_id, ptRow?.slug);
 
-    if (isLollipop) {
+    if (isPylon) {
+      await validatePylonCart({
+        product_type_id: req.body.product_type_id,
+        pylon_id: req.body.pylon_id,
+        pylon_category_id: req.body.pylon_category_id,
+        pylon_tiles_count: req.body.pylon_tiles_count,
+      });
+    } else if (isLollipop) {
       await validateLollipopCart({
         product_type_id: req.body.product_type_id,
         add_border_id: req.body.add_border_id,
@@ -476,6 +560,7 @@ exports.addItem = async (req, res, next) => {
 exports.updateItem = async (req, res, next) => {
   try {
     sanitizeOptionalImageFields(req.body);
+    normalizePylonCartFields(req.body);
     const item = await cartModel.getItemById(req.params.id, req.user.id);
     if (!item) return notFound(res, 'Cart item not found');
     if (item.listed_product_id) {
@@ -486,8 +571,19 @@ exports.updateItem = async (req, res, next) => {
     }
     const ptRow = await db.findOne('SELECT slug FROM product_types WHERE id = ?', [req.body.product_type_id]);
     const isLollipop = isLollipopProductType(req.body.product_type_id, ptRow?.slug);
+    const isPylon = isPylonProductType(req.body.product_type_id, ptRow?.slug);
 
-    if (isLollipop) {
+    if (isPylon) {
+      const pylonId = req.body.pylon_id !== undefined ? req.body.pylon_id : item.pylon_id;
+      const categoryId = req.body.pylon_category_id !== undefined ? req.body.pylon_category_id : item.pylon_category_id;
+      const tilesCount = req.body.pylon_tiles_count !== undefined ? req.body.pylon_tiles_count : item.pylon_tiles_count;
+      await validatePylonCart({
+        product_type_id: req.body.product_type_id,
+        pylon_id: pylonId,
+        pylon_category_id: categoryId,
+        pylon_tiles_count: tilesCount,
+      });
+    } else if (isLollipop) {
       const addBorderId = req.body.add_border_id !== undefined ? req.body.add_border_id : item.add_border_id;
       const lollipopElementId = req.body.lollipop_element_id !== undefined
         ? req.body.lollipop_element_id

@@ -2,6 +2,7 @@ const Joi = require('joi');
 const { LISTED_PRODUCT_SIZES } = require('../../utils/constants');
 
 const sizePrice = Joi.number().min(0).optional();
+const sizeDim = Joi.string().max(150).optional().allow('', null);
 
 const create = Joi.object({
   product_type_id: Joi.number().integer().positive().required(),
@@ -13,6 +14,12 @@ const create = Joi.object({
   price_regular:   sizePrice,
   price_medium:    sizePrice,
   price_large:     sizePrice,
+  height_regular:  sizeDim,
+  height_medium:   sizeDim,
+  height_large:    sizeDim,
+  width_regular:   sizeDim,
+  width_medium:    sizeDim,
+  width_large:     sizeDim,
   remove_image_ids: Joi.alternatives().try(
     Joi.array().items(Joi.number().integer().positive()),
     Joi.string()
@@ -33,6 +40,12 @@ const update = Joi.object({
   price_regular:   sizePrice,
   price_medium:    sizePrice,
   price_large:     sizePrice,
+  height_regular:  sizeDim,
+  height_medium:   sizeDim,
+  height_large:    sizeDim,
+  width_regular:   sizeDim,
+  width_medium:    sizeDim,
+  width_large:     sizeDim,
   remove_image_ids: Joi.alternatives().try(
     Joi.array().items(Joi.number().integer().positive()),
     Joi.string()

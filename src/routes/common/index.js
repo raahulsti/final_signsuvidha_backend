@@ -4,4 +4,5 @@ router.use('/pages',   require('./pages'));
 const listedProducts = require('./listedProducts');
 router.use('/listed-products', listedProducts);
 router.use('/listed-product', listedProducts); // alias (singular)
+router.use('/pylons', require('./pylons'));
 module.exports = router;
