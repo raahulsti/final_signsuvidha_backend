@@ -190,8 +190,13 @@ exports.checkout = async (req, res, next) => {
             billing_address_id, shipping_service_id, notes } = req.body;
 
     // Validate address belongs to user
-    const shippingAddr = await addressModel.getById(shipping_address_id, req.user.id);
+    const shippingAddr = await addressModel.getActiveById(shipping_address_id, req.user.id);
     if (!shippingAddr) return notFound(res, 'Shipping address not found');
+
+    if (!billing_same_as_shipping && billing_address_id) {
+      const billingAddr = await addressModel.getActiveById(billing_address_id, req.user.id);
+      if (!billingAddr) return notFound(res, 'Billing address not found');
+    }
 
     // Get cart items (must have vendor selected)
     const cartItems = await cartModel.getCartByUser(req.user.id);
