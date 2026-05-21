@@ -156,7 +156,7 @@ const getVariantPrice = async (productId, size) => {
     `SELECT v.admin_price, p.is_active AS product_active, v.is_active AS variant_active, p.product_type_id, p.name
      FROM listed_product_variants v
      INNER JOIN listed_products p ON p.id = v.listed_product_id
-     WHERE v.listed_product_id = ? AND v.size = ?`,
+     WHERE v.listed_product_id = ? AND v.size COLLATE utf8mb4_unicode_ci = ?`,
     [productId, size]
   );
   if (!row || !row.product_active || !row.variant_active) return null;

@@ -1,5 +1,8 @@
 const db = require('../config/db');
 
+/** Match listed_product_variants.size collation when joining/comparing */
+const SIZE_CMP = (colA, colB) => `${colA} COLLATE utf8mb4_unicode_ci = ${colB} COLLATE utf8mb4_unicode_ci`;
+
 const parseTextLayers = (value) => {
   if (!value) return [];
   if (Array.isArray(value)) return value;
@@ -63,7 +66,9 @@ const getCartByUser = (userId) =>
      FROM cart_items ci
      LEFT JOIN product_types  pt ON pt.id = ci.product_type_id
      LEFT JOIN listed_products lp ON lp.id = ci.listed_product_id
-     LEFT JOIN listed_product_variants lpv ON lpv.listed_product_id = ci.listed_product_id AND lpv.size = ci.listed_product_size
+     LEFT JOIN listed_product_variants lpv ON lpv.listed_product_id = ci.listed_product_id
+       AND ${SIZE_CMP('lpv.size', 'ci.listed_product_size')}
+       AND lpv.is_active = 1
      LEFT JOIN materials        m ON m.id  = ci.material_id
      LEFT JOIN material_styles ms ON ms.id = ci.material_style_id
      LEFT JOIN frames          fr ON fr.id = ci.frame_id
@@ -130,23 +135,25 @@ const updateItem = (id, fields) => {
 
 const findListedLine = (userId, listedProductId, size) =>
   db.findOne(
-    'SELECT * FROM cart_items WHERE user_id = ? AND listed_product_id = ? AND listed_product_size = ?',
+    'SELECT * FROM cart_items WHERE user_id = ? AND listed_product_id = ? AND listed_product_size COLLATE utf8mb4_unicode_ci = ?',
     [userId, listedProductId, size]
   ).then(normalizeCartRow);
 
 const addListedItem = async ({ user_id, listed_product_id, listed_product_size, product_type_id, quantity }) => {
+  const qty = Math.min(100, Math.max(1, parseInt(quantity, 10) || 1));
   const existing = await findListedLine(user_id, listed_product_id, listed_product_size);
   if (existing) {
+    // Set absolute qty (picker value), not increment — avoids double-submit / duplicate POST → qty 2
     await db.execute(
-      'UPDATE cart_items SET quantity = quantity + ?, updated_at = NOW() WHERE id = ?',
-      [quantity || 1, existing.id]
+      'UPDATE cart_items SET quantity = ?, updated_at = NOW() WHERE id = ?',
+      [qty, existing.id]
     );
     return { insertId: existing.id, merged: true };
   }
   const result = await db.execute(
     `INSERT INTO cart_items (user_id, listed_product_id, listed_product_size, product_type_id, quantity, vendor_id)
      VALUES (?, ?, ?, ?, ?, NULL)`,
-    [user_id, listed_product_id, listed_product_size, product_type_id, quantity || 1]
+    [user_id, listed_product_id, listed_product_size, product_type_id, qty]
   );
   return { insertId: result.insertId, merged: false };
 };

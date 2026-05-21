@@ -5,6 +5,7 @@ const validate = (schema, property = 'body') => (req, res, next) => {
   const { error, value } = schema.validate(req[property], {
     abortEarly:    false,
     stripUnknown:  true,
+    convert:       true,
   });
   if (error) {
     const errors = error.details.map((d) => ({

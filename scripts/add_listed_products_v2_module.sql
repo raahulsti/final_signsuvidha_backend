@@ -30,7 +30,7 @@ SET @sql = IF(
   (SELECT COUNT(*) FROM information_schema.COLUMNS
    WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'cart_items' AND COLUMN_NAME = 'listed_product_id') = 0,
   'ALTER TABLE cart_items ADD COLUMN listed_product_id BIGINT UNSIGNED NULL AFTER user_id,
-   ADD COLUMN listed_product_size VARCHAR(20) NULL AFTER listed_product_id',
+   ADD COLUMN listed_product_size ENUM(''regular'',''medium'',''large'') NULL COLLATE utf8mb4_unicode_ci AFTER listed_product_id',
   'SELECT 1'
 );
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
@@ -39,7 +39,7 @@ SET @sql = IF(
   (SELECT COUNT(*) FROM information_schema.COLUMNS
    WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'order_items' AND COLUMN_NAME = 'listed_product_id') = 0,
   'ALTER TABLE order_items ADD COLUMN listed_product_id BIGINT UNSIGNED NULL AFTER order_id,
-   ADD COLUMN listed_product_size VARCHAR(20) NULL AFTER listed_product_id',
+   ADD COLUMN listed_product_size ENUM(''regular'',''medium'',''large'') NULL COLLATE utf8mb4_unicode_ci AFTER listed_product_id',
   'SELECT 1'
 );
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
