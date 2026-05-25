@@ -25,6 +25,10 @@ exports.register = async (req, res, next) => {
     if (pendingVerification) {
       return success(res, data, 'Registration pending. OTP sent again. Please verify to activate your account.');
     }
+    if (req.body.role === 'vendor') {
+      data.approval_pending = true;
+      return created(res, data, 'Registration successful. Your account is pending admin approval.');
+    }
     return created(res, data, req.body.role === 'customer'
       ? 'Registration initiated. Verify OTP to activate account'
       : 'Registration successful');

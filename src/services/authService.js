@@ -1,7 +1,8 @@
 const bcrypt     = require('bcryptjs');
 const moment     = require('moment');
-const userModel  = require('../models/userModel');
-const authModel  = require('../models/authModel');
+const userModel   = require('../models/userModel');
+const vendorModel = require('../models/vendorModel');
+const authModel   = require('../models/authModel');
 const { generateAccessToken, generateRefreshToken } = require('../config/jwt');
 const { generateOTP } = require('../utils/helpers');
 
@@ -79,6 +80,24 @@ const login = async ({ email, password, deviceInfo }) => {
   
   const roles   = await userModel.getRoles(user.id);
   const roleArr = roles.map((r) => r.name);
+
+  const isVendorOnly = roleArr.includes('vendor') && !roleArr.includes('super_admin');
+  if (isVendorOnly) {
+    const vendor = await vendorModel.getByUserId(user.id);
+    if (!vendor) {
+      const err = new Error('profile not found'); err.statusCode = 403; throw err;
+    }
+    if (!vendor.is_approved) {
+      const err = new Error('Your account is pending admin approval. Please login after approval.');
+      err.statusCode = 403;
+      throw err;
+    }
+    if (!vendor.is_active) {
+      const err = new Error('Your account has been deactivated. Contact support.');
+      err.statusCode = 403;
+      throw err;
+    }
+  }
 
   const payload      = { user_id: user.id, roles: roleArr };
   const accessToken  = generateAccessToken(payload);
