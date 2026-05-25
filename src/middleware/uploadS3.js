@@ -53,14 +53,44 @@ const UPLOAD_FIELD_NAMES = new Set([
   'lollipop_image', 'design_image', 'sign_image', 'custom_image',
 ]);
 
-/** Map multipart files → uploaded_image_url / preview_image_url (any field name). */
+const isPylonTilesImageField = (fieldname) => {
+  const name = String(fieldname || '');
+  return name === 'pylon_tiles_images'
+    || name === 'pylon_tile_image'
+    || name === 'pylon_tiles_image'
+    || name.startsWith('pylon_tiles_images[')
+    || name.startsWith('pylon_tiles_images');
+};
+
+const parseUrlArrayField = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) {
+    return value.filter((u) => typeof u === 'string' && u.trim()).map((u) => u.trim());
+  }
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed)
+        ? parsed.filter((u) => typeof u === 'string' && u.trim()).map((u) => u.trim())
+        : [];
+    } catch (_) {
+      return value.trim() ? [value.trim()] : [];
+    }
+  }
+  return [];
+};
+
+/** Map multipart files → uploaded_image_url / preview_image_url / pylon_tiles_images. */
 const applyCartUploadedFiles = (req, _res, next) => {
   const list = (Array.isArray(req.files) ? req.files : []).filter((f) => f?.location);
   const unmapped = [];
+  const pylonTileUploads = [];
 
   for (const f of list) {
     const name = f.fieldname;
-    if (PREVIEW_FIELD_NAMES.has(name)) {
+    if (isPylonTilesImageField(name)) {
+      pylonTileUploads.push(f.location);
+    } else if (PREVIEW_FIELD_NAMES.has(name)) {
       if (!req.body.preview_image_url) req.body.preview_image_url = f.location;
     } else if (UPLOAD_FIELD_NAMES.has(name)) {
       if (!req.body.uploaded_image_url) req.body.uploaded_image_url = f.location;
@@ -77,8 +107,15 @@ const applyCartUploadedFiles = (req, _res, next) => {
     }
   }
 
-  // Single design image (common on lollipop / sign products): use for both cart display fields
-  if (list.length === 1 && list[0].location) {
+  if (pylonTileUploads.length) {
+    const fromBody = parseUrlArrayField(req.body.pylon_tiles_images);
+    req.body.pylon_tiles_images = [...fromBody, ...pylonTileUploads];
+  } else if (req.body.pylon_tiles_images !== undefined) {
+    req.body.pylon_tiles_images = parseUrlArrayField(req.body.pylon_tiles_images);
+  }
+
+  // Single design image (not pylon tiles): use for both cart display fields
+  if (list.length === 1 && list[0].location && !pylonTileUploads.length) {
     const url = list[0].location;
     if (!req.body.uploaded_image_url) req.body.uploaded_image_url = url;
     if (!req.body.preview_image_url) req.body.preview_image_url = url;
@@ -122,6 +159,8 @@ module.exports = {
   createCartUploader,
   createProfileImageUploader,
   applyCartUploadedFiles,
+  isPylonTilesImageField,
+  parseUrlArrayField,
   applyProfileImageUpload,
   pickUploadedProfileFile,
   ALLOWED_IMAGE_TYPES,

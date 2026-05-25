@@ -306,6 +306,7 @@ exports.checkout = async (req, res, next) => {
             pylon_id: item.pylon_id || null,
             pylon_category_id: item.pylon_category_id || null,
             pylon_tiles_count: item.pylon_tiles_count ?? 0,
+            pylon_tiles_images: item.pylon_tiles_images || [],
             pylon_category_price: item.pylon_category_price,
             pylon_tiles_price: item.pylon_tiles_price,
             pylon_category_cost: item.pylon_category_cost,

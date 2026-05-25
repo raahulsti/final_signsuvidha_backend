@@ -17,11 +17,30 @@ const parseTextLayers = (value) => {
   return [];
 };
 
+const parseUrlArray = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) {
+    return value.filter((u) => typeof u === 'string' && u.trim()).map((u) => u.trim());
+  }
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed)
+        ? parsed.filter((u) => typeof u === 'string' && u.trim()).map((u) => u.trim())
+        : [];
+    } catch (_) {
+      return value.trim() ? [value.trim()] : [];
+    }
+  }
+  return [];
+};
+
 const normalizeCartRow = (row) => {
   if (!row) return row;
   return {
     ...row,
     text_layers: parseTextLayers(row.text_layers),
+    pylon_tiles_images: parseUrlArray(row.pylon_tiles_images),
   };
 };
 
@@ -108,7 +127,7 @@ const getItemById = (id, userId) =>
 
 const addItem = ({ user_id, product_type_id, material_id, material_style_id, frame_id, wallpaper_id,
                    add_border_id, border_is_lit, lollipop_element_id,
-                   pylon_id, pylon_category_id, pylon_tiles_count,
+                   pylon_id, pylon_category_id, pylon_tiles_count, pylon_tiles_images,
                    base_id, thickness_id, element_id, color_id, font_id,
                    illumination_option_id, text_layers, height, width, dimension_unit_id,
                    uploaded_image_url, preview_image_url, quantity }) =>
@@ -116,14 +135,15 @@ const addItem = ({ user_id, product_type_id, material_id, material_style_id, fra
     `INSERT INTO cart_items
        (user_id, product_type_id, material_id, material_style_id, frame_id, wallpaper_id,
         add_border_id, border_is_lit, lollipop_element_id,
-        pylon_id, pylon_category_id, pylon_tiles_count,
+        pylon_id, pylon_category_id, pylon_tiles_count, pylon_tiles_images,
         base_id, thickness_id, element_id, color_id, font_id,
         illumination_option_id, text_layers, height, width, dimension_unit_id,
         uploaded_image_url, preview_image_url, quantity)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [user_id, product_type_id, material_id || null, material_style_id || null, frame_id || null, wallpaper_id || null,
      add_border_id || null, border_is_lit ? 1 : 0, lollipop_element_id || null,
      pylon_id || null, pylon_category_id || null, Math.max(0, parseInt(pylon_tiles_count, 10) || 0),
+     pylon_tiles_images?.length ? JSON.stringify(pylon_tiles_images) : null,
      base_id || null, thickness_id || null, element_id || null,
      color_id || null, font_id || null, illumination_option_id || null,
      text_layers ? JSON.stringify(text_layers) : null,
@@ -133,7 +153,7 @@ const addItem = ({ user_id, product_type_id, material_id, material_style_id, fra
 
 const updateItem = (id, fields) => {
   const allowed = ['material_id','material_style_id','frame_id','wallpaper_id','add_border_id','border_is_lit','lollipop_element_id',
-                   'pylon_id','pylon_category_id','pylon_tiles_count',
+                   'pylon_id','pylon_category_id','pylon_tiles_count','pylon_tiles_images',
                    'base_id','thickness_id','element_id','color_id','font_id','illumination_option_id',
                    'text_layers','height','width','dimension_unit_id','quantity',
                    'uploaded_image_url','preview_image_url','vendor_id'];
@@ -143,6 +163,7 @@ const updateItem = (id, fields) => {
       sets.push(`${k} = ?`);
       let v = fields[k];
       if (k === 'text_layers' && v) v = JSON.stringify(v);
+      if (k === 'pylon_tiles_images') v = v?.length ? JSON.stringify(v) : null;
       if (k === 'border_is_lit') v = v ? 1 : 0;
       values.push(v);
     }

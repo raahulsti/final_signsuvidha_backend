@@ -24,6 +24,24 @@ const parseTextLayers = (value) => {
   return [];
 };
 
+const parseUrlArray = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) {
+    return value.filter((u) => typeof u === 'string' && u.trim()).map((u) => u.trim());
+  }
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed)
+        ? parsed.filter((u) => typeof u === 'string' && u.trim()).map((u) => u.trim())
+        : [];
+    } catch (_) {
+      return value.trim() ? [value.trim()] : [];
+    }
+  }
+  return [];
+};
+
 const formatAddress = (addr) => {
   if (!addr) return null;
   const parts = [
@@ -161,7 +179,8 @@ const toNestedOrderItem = (item) => {
     category_price: parseFloat(item.pylon_category_price || 0),
     tiles_price: parseFloat(item.pylon_tiles_price || 0),
   } : null,
-  pylon_tiles_count: item.pylon_id != null ? (parseInt(item.pylon_tiles_count, 10) || 0) : null,
+  tiles: item.pylon_id != null ? (parseInt(item.pylon_tiles_count, 10) || 0) : null,
+  pylon_tiles_images: item.pylon_id != null ? parseUrlArray(item.pylon_tiles_images) : [],
   base: item.base_id ? {
     id: item.base_id,
     name: item.base_name,

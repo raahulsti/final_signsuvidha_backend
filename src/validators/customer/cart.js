@@ -1,15 +1,19 @@
 const Joi = require('joi');
 
+/** Each layer: only `text` required; other keys optional and may differ per layer. */
 const textLayer = Joi.object({
   text:      Joi.string().max(500).required(),
-  color:     Joi.string().optional().allow(''),
-  font_id:   Joi.number().integer().positive().optional(),
-  font_size: Joi.number().integer().min(1).optional(),
-  x:         Joi.number().optional(),
-  y:         Joi.number().optional(),
-});
+  color:     Joi.string().optional().allow('', null),
+  font_id:   Joi.number().optional().allow(null),
+  font_size: Joi.number().optional().allow(null),
+  shadow:    Joi.any().optional(),
+  x:         Joi.number().optional().allow(null),
+  y:         Joi.number().optional().allow(null),
+}).unknown(true);
 
 const textLayerArray = Joi.array().items(textLayer);
+
+const textLayerValidateOpts = { convert: true, stripUnknown: true };
 
 const textLayersField = Joi.alternatives()
   .try(
@@ -17,7 +21,7 @@ const textLayersField = Joi.alternatives()
     Joi.string().custom((value, helpers) => {
       try {
         const parsed = JSON.parse(value);
-        const { error, value: validated } = textLayerArray.validate(parsed);
+        const { error, value: validated } = textLayerArray.validate(parsed, textLayerValidateOpts);
         if (error) return helpers.error('any.invalid');
         return validated;
       } catch (_) {
@@ -26,6 +30,24 @@ const textLayersField = Joi.alternatives()
     }, 'text_layers JSON parser')
   )
   .messages({ 'any.invalid': 'text_layers must be a valid JSON array' });
+
+const urlArray = Joi.array().items(Joi.string().max(2000)).max(50);
+
+const pylonTilesImagesField = Joi.alternatives()
+  .try(
+    urlArray,
+    Joi.string().custom((value, helpers) => {
+      try {
+        const parsed = JSON.parse(value);
+        const { error, value: validated } = urlArray.validate(parsed);
+        if (error) return helpers.error('any.invalid');
+        return validated;
+      } catch (_) {
+        return helpers.error('any.invalid');
+      }
+    }, 'pylon_tiles_images JSON parser')
+  )
+  .messages({ 'any.invalid': 'pylon_tiles_images must be a valid JSON array of image URLs' });
 
 const addToCart = Joi.object({
   product_type_id:   Joi.number().integer().positive().required(),
@@ -38,9 +60,8 @@ const addToCart = Joi.object({
   lollipop_element_id: Joi.number().integer().positive().optional().allow(null),
   pylon_id:            Joi.number().integer().positive().optional().allow(null),
   pylon_category_id:   Joi.number().integer().positive().optional().allow(null),
-  category_id:         Joi.number().integer().positive().optional().allow(null),
-  pylon_tiles_count:   Joi.number().integer().min(0).max(1000).optional(),
   tiles:               Joi.number().integer().min(0).max(1000).optional(),
+  pylon_tiles_images:  pylonTilesImagesField.optional().allow(null),
   base_id:           Joi.number().integer().positive().optional().allow(null),
   thickness_id:      Joi.number().integer().positive().optional().allow(null),
   element_id:        Joi.number().integer().positive().optional().allow(null),

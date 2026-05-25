@@ -15,6 +15,7 @@ const { LISTED_PRODUCT_SIZES } = require('../../utils/constants');
 const { getVendorComparison, calculateItemPrice } = require('../../services/pricingService');
 const { success, created, notFound, error } = require('../../utils/response');
 const db = require('../../config/db');
+const { isPylonTilesImageField } = require('../../middleware/uploadS3');
 
 const sanitizeOptionalImageFields = (body = {}) => {
   ['uploaded_image_url', 'preview_image_url'].forEach((key) => {
@@ -117,7 +118,8 @@ const toNestedCartItem = (item, pricing = null, adminSellerId = null) => ({
     tiles_name: item.pylon_tiles_name,
     tiles_price: parseFloat(item.pylon_tiles_admin_price || 0),
   } : null,
-  pylon_tiles_count: item.pylon_id ? (parseInt(item.pylon_tiles_count, 10) || 0) : null,
+  tiles: item.pylon_id ? (parseInt(item.pylon_tiles_count, 10) || 0) : null,
+  pylon_tiles_images: item.pylon_id ? (item.pylon_tiles_images || []) : [],
   base: item.base_id ? {
     id: item.base_id,
     name: item.base_name,
@@ -351,7 +353,6 @@ const isPylonProductType = (productTypeId, slug) =>
   slug === PRODUCT_SLUGS.PYLON_SIGN;
 
 const normalizePylonCartFields = (body) => {
-  if (body.category_id && !body.pylon_category_id) body.pylon_category_id = body.category_id;
   if (body.tiles !== undefined && body.pylon_tiles_count === undefined) {
     body.pylon_tiles_count = body.tiles;
   }
@@ -622,6 +623,13 @@ exports.updateItem = async (req, res, next) => {
       });
       await validateBaseForProductType(req.body.base_id, req.body.product_type_id);
       await validateThicknessForProductType(req.body.thickness_id, req.body.product_type_id);
+    }
+    if (isPylon && req.body.pylon_tiles_images !== undefined) {
+      const hadNewUploads = (req.files || []).some((f) => isPylonTilesImageField(f.fieldname));
+      if (hadNewUploads) {
+        const prev = item.pylon_tiles_images || [];
+        req.body.pylon_tiles_images = [...new Set([...prev, ...req.body.pylon_tiles_images])];
+      }
     }
     await cartModel.updateItem(req.params.id, req.body);
     return success(res, {}, 'Cart item updated');
