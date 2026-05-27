@@ -70,9 +70,31 @@ const formatAddress = (addr) => {
   };
 };
 
-const toNestedListedOrderItem = (item) => ({
-  id: item.id,
-  order_id: item.order_id,
+const parseItemSnapshot = (value) => {
+  if (!value) return null;
+  if (typeof value === 'object') return value;
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch (_) {
+      return null;
+    }
+  }
+  return null;
+};
+
+const normalizeSnapshotSourceRow = (item) => {
+  if (!item) return item;
+  return {
+    ...item,
+    listed_product_height: item.listed_product_height ?? item.listed_variant_height,
+    listed_product_width: item.listed_product_width ?? item.listed_variant_width,
+    pylon_tiles_count: item.pylon_tiles_count ?? item.tiles,
+  };
+};
+
+const buildListedOrderItemDisplay = (item) => ({
   item_type: 'listed',
   quantity: item.quantity,
   listed_product: {
@@ -89,8 +111,13 @@ const toNestedListedOrderItem = (item) => ({
     name: item.product_type_name,
     slug: item.product_type_slug,
   } : null,
+  color: item.color_id ? {
+    id: item.color_id,
+    name: item.color_name,
+    hex_code: item.hex_code,
+  } : null,
   images: {
-    preview_image_url: item.listed_product_thumbnail || null,
+    preview_image_url: item.listed_product_thumbnail || item.preview_image_url || null,
     uploaded_image_url: null,
   },
   pricing: {
@@ -100,11 +127,7 @@ const toNestedListedOrderItem = (item) => ({
   },
 });
 
-const toNestedOrderItem = (item) => {
-  if (item.listed_product_id) return toNestedListedOrderItem(item);
-  return {
-  id: item.id,
-  order_id: item.order_id,
+const buildCustomOrderItemDisplay = (item) => ({
   item_type: 'custom',
   quantity: item.quantity,
   text_layers: parseTextLayers(item.text_layers),
@@ -247,11 +270,27 @@ const toNestedOrderItem = (item) => {
   is_lollipop: String(item.product_type_id) === String(LOLLIPOP_PRODUCT_TYPE_ID)
     || item.product_type_slug === PRODUCT_SLUGS.LOLLIPOP_SIGN,
   is_pylon: item.product_type_slug === PRODUCT_SLUGS.PYLON_SIGN || !!item.pylon_id,
+});
+
+const buildOrderItemDisplayFromRow = (item) => {
+  if (item.listed_product_id) return buildListedOrderItemDisplay(item);
+  return buildCustomOrderItemDisplay(item);
+};
+
+const buildOrderItemSnapshot = (item) =>
+  buildOrderItemDisplayFromRow(normalizeSnapshotSourceRow(item));
+
+const toNestedOrderItem = (item) => {
+  const snapshot = parseItemSnapshot(item.item_snapshot);
+  const display = snapshot || buildOrderItemDisplayFromRow(item);
+  return {
+    id: item.id,
+    order_id: item.order_id,
+    ...display,
   };
 };
 
-const buildSeller = async (order) => {
-  const sellerType = order.seller_type || (order.vendor_id ? 'vendor' : 'admin');
+const buildSeller = async (order) => {  const sellerType = order.seller_type || (order.vendor_id ? 'vendor' : 'admin');
   if (sellerType === 'vendor' && order.vendor_id) {
     const vendor = await db.findOne(
       `SELECT v.id, v.business_name, v.gst_number, v.logo_url, v.address, v.city, v.state, v.pincode,
@@ -441,5 +480,6 @@ module.exports = {
   enrichOrdersForPanel,
   getAdminSellerId,
   toNestedOrderItem,
+  buildOrderItemSnapshot,
   formatAddress,
 };

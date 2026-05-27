@@ -9,7 +9,7 @@ const { createOrder, verifySignature } = require('../../services/razorpayService
 const { success, created, notFound, error, paginated } = require('../../utils/response');
 const { getPagination, getPaginationMeta } = require('../../utils/helpers');
 const { nextSellerSerials, saveInvoiceNumber } = require('../../services/orderNumberService');
-const { enrichOrder, enrichOrders } = require('../../services/orderResponseService');
+const { enrichOrder, enrichOrders, buildOrderItemSnapshot } = require('../../services/orderResponseService');
 const { LOLLIPOP_PRODUCT_TYPE_ID, PRODUCT_SLUGS } = require('../../utils/constants');
 
 const isLollipopOrderItem = (item) =>
@@ -291,6 +291,12 @@ exports.checkout = async (req, res, next) => {
         });
 
         for (const item of items) {
+          const snapshotSource = {
+            ...item,
+            height: isFixedPriceOrderItem(item) ? 0 : (item.height || 0),
+            width: isFixedPriceOrderItem(item) ? 0 : (item.width || 0),
+            dimension_unit_id: isFixedPriceOrderItem(item) ? null : (item.dimension_unit_id || null),
+          };
           await orderModel.createItem(conn, {
             order_id: orderId,
             listed_product_id: item.listed_product_id || null,
@@ -345,6 +351,7 @@ exports.checkout = async (req, res, next) => {
             quantity: item.quantity,
             total_price: item.total_price,
             preview_image_url: item.preview_image_url,
+            item_snapshot: buildOrderItemSnapshot(snapshotSource),
           });
         }
 

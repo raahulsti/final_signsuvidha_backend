@@ -8,8 +8,8 @@ const create = Joi.object({
   email:         Joi.string().email().optional().allow(''),
   address_line1: Joi.string().min(5).max(255).required(),
   address_line2: Joi.string().max(255).optional().allow(''),
-  city:          Joi.string().min(2).max(100).required(),
-  state:         Joi.string().min(2).max(100).required(),
+  state_id:      Joi.number().integer().positive().required(),
+  city_id:       Joi.number().integer().positive().required(),
   pincode:       Joi.string().pattern(/^\d{6}$/).required()
                    .messages({ 'string.pattern.base': 'Enter valid 6-digit pincode' }),
   country:       Joi.string().max(100).optional(),
@@ -18,8 +18,8 @@ const create = Joi.object({
 });
 
 const update = create.fork(
-  ['full_name','phone','address_line1','city','state','pincode'],
+  ['full_name','phone','address_line1','state_id','city_id','pincode'],
   (schema) => schema.optional()
-);
+).and('state_id', 'city_id');
 
 module.exports = { create, update };

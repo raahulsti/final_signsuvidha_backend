@@ -19,6 +19,8 @@ const fontModel       = require('../../models/fontModel');
 const fontSizeModel   = require('../../models/fontSizeModel');
 const letterStyleModel= require('../../models/letterStyleModel');
 const illuminationOptionModel = require('../../models/illuminationOptionModel');
+const stateModel = require('../../models/stateModel');
+const cityModel = require('../../models/cityModel');
 const { success, error } = require('../../utils/response');
 const { WALLPAPER_TYPES } = require('../../utils/constants');
 
@@ -26,6 +28,20 @@ exports.getProductTypes   = async (req, res, next) => { try { return success(res
 exports.getFontSizes      = async (req, res, next) => { try { return success(res, await fontSizeModel.getAll()); } catch(e){next(e);} };
 exports.getDimensionUnits = async (req, res, next) => { try { return success(res, await db.execute('SELECT * FROM dimension_units')); } catch(e){next(e);} };
 exports.getShippingServices = async (req, res, next) => { try { return success(res, await db.execute('SELECT * FROM shipping_services WHERE is_active = 1')); } catch(e){next(e);} };
+
+exports.getStates = async (req, res, next) => {
+  try {
+    return success(res, await stateModel.getAll({ activeOnly: true }));
+  } catch (e) { next(e); }
+};
+
+exports.getCities = async (req, res, next) => {
+  try {
+    const { state_id } = req.query;
+    if (!state_id) return error(res, 'state_id is required', 400);
+    return success(res, await cityModel.getAll({ stateId: state_id, activeOnly: true }));
+  } catch (e) { next(e); }
+};
 
 exports.getMaterials = async (req, res, next) => {
   try {

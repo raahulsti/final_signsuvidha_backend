@@ -36,6 +36,7 @@ const createItem = (conn, item) => {
     base_price_per_sqft, base_cost,
     thickness_price_per_sqft, thickness_cost,
     element_cost, color_extra, illumination_cost, unit_price, quantity, total_price, preview_image_url,
+    item_snapshot,
   } = item;
 
   const columns = [
@@ -50,6 +51,7 @@ const createItem = (conn, item) => {
     'add_border_base_price', 'add_border_lit_extra', 'add_border_cost', 'lollipop_element_cost',
     'base_price_per_sqft', 'base_cost', 'thickness_price_per_sqft', 'thickness_cost',
     'element_cost', 'color_extra', 'illumination_cost', 'unit_price', 'quantity', 'total_price', 'preview_image_url',
+    'item_snapshot',
   ];
 
   const values = [
@@ -72,6 +74,7 @@ const createItem = (conn, item) => {
     thickness_price_per_sqft ?? 0, thickness_cost ?? 0,
     element_cost, color_extra, illumination_cost ?? 0,
     unit_price, quantity, total_price, preview_image_url || null,
+    item_snapshot ? JSON.stringify(item_snapshot) : null,
   ];
 
   const placeholders = columns.map(() => '?').join(', ');

@@ -173,15 +173,19 @@ const updateItem = (id, fields) => {
   return db.execute(`UPDATE cart_items SET ${sets.join(', ')}, updated_at = NOW() WHERE id = ?`, values);
 };
 
-const findListedLine = (userId, listedProductId, size) =>
+const findListedLine = (userId, listedProductId, size, colorId = null) =>
   db.findOne(
-    'SELECT * FROM cart_items WHERE user_id = ? AND listed_product_id = ? AND listed_product_size COLLATE utf8mb4_unicode_ci = ?',
-    [userId, listedProductId, size]
+    `SELECT * FROM cart_items
+     WHERE user_id = ? AND listed_product_id = ?
+       AND listed_product_size COLLATE utf8mb4_unicode_ci = ?
+       AND color_id <=> ?`,
+    [userId, listedProductId, size, colorId ?? null]
   ).then(normalizeCartRow);
 
-const addListedItem = async ({ user_id, listed_product_id, listed_product_size, product_type_id, quantity }) => {
+const addListedItem = async ({ user_id, listed_product_id, listed_product_size, product_type_id, quantity, color_id }) => {
   const qty = Math.min(100, Math.max(1, parseInt(quantity, 10) || 1));
-  const existing = await findListedLine(user_id, listed_product_id, listed_product_size);
+  const colorId = color_id || null;
+  const existing = await findListedLine(user_id, listed_product_id, listed_product_size, colorId);
   if (existing) {
     // Set absolute qty (picker value), not increment — avoids double-submit / duplicate POST → qty 2
     await db.execute(
@@ -191,9 +195,9 @@ const addListedItem = async ({ user_id, listed_product_id, listed_product_size, 
     return { insertId: existing.id, merged: true };
   }
   const result = await db.execute(
-    `INSERT INTO cart_items (user_id, listed_product_id, listed_product_size, product_type_id, quantity, vendor_id)
-     VALUES (?, ?, ?, ?, ?, NULL)`,
-    [user_id, listed_product_id, listed_product_size, product_type_id, qty]
+    `INSERT INTO cart_items (user_id, listed_product_id, listed_product_size, product_type_id, color_id, quantity, vendor_id)
+     VALUES (?, ?, ?, ?, ?, ?, NULL)`,
+    [user_id, listed_product_id, listed_product_size, product_type_id, colorId, qty]
   );
   return { insertId: result.insertId, merged: false };
 };

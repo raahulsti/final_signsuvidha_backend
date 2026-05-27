@@ -2,32 +2,48 @@ const db = require('../config/db');
 
 const getAll = (userId) =>
   db.execute(
-    'SELECT * FROM customer_addresses WHERE user_id = ? AND is_active = 1 ORDER BY is_default DESC, id ASC',
+    `SELECT ca.*, s.name AS state_name, c.name AS city_name
+     FROM customer_addresses ca
+     LEFT JOIN states s ON s.id = ca.state_id
+     LEFT JOIN cities c ON c.id = ca.city_id
+     WHERE ca.user_id = ? AND ca.is_active = 1
+     ORDER BY ca.is_default DESC, ca.id ASC`,
     [userId]
   );
 
 const getById = (id, userId) =>
-  db.findOne('SELECT * FROM customer_addresses WHERE id = ? AND user_id = ?', [id, userId]);
+  db.findOne(
+    `SELECT ca.*, s.name AS state_name, c.name AS city_name
+     FROM customer_addresses ca
+     LEFT JOIN states s ON s.id = ca.state_id
+     LEFT JOIN cities c ON c.id = ca.city_id
+     WHERE ca.id = ? AND ca.user_id = ?`,
+    [id, userId]
+  );
 
 const getActiveById = (id, userId) =>
   db.findOne(
-    'SELECT * FROM customer_addresses WHERE id = ? AND user_id = ? AND is_active = 1',
+    `SELECT ca.*, s.name AS state_name, c.name AS city_name
+     FROM customer_addresses ca
+     LEFT JOIN states s ON s.id = ca.state_id
+     LEFT JOIN cities c ON c.id = ca.city_id
+     WHERE ca.id = ? AND ca.user_id = ? AND ca.is_active = 1`,
     [id, userId]
   );
 
 const create = ({ user_id, address_title, full_name, phone, email, address_line1,
-                  address_line2, city, state, pincode, country, is_default, billing_type }) =>
+                  address_line2, city, state, state_id, city_id, pincode, country, is_default, billing_type }) =>
   db.execute(
     `INSERT INTO customer_addresses
-       (user_id, address_title, full_name, phone, email, address_line1, address_line2, city, state, pincode, country, is_default, billing_type, is_active)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+       (user_id, address_title, full_name, phone, email, address_line1, address_line2, city, state, state_id, city_id, pincode, country, is_default, billing_type, is_active)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
     [user_id, address_title || null, full_name, phone, email || null,
-     address_line1, address_line2 || null, city, state, pincode,
+     address_line1, address_line2 || null, city, state, state_id, city_id, pincode,
      country || 'India', is_default ? 1 : 0, billing_type || 'personal']
   );
 
 const update = (id, userId, fields) => {
-  const allowed = ['address_title','full_name','phone','email','address_line1','address_line2','city','state','pincode','is_default','billing_type'];
+  const allowed = ['address_title','full_name','phone','email','address_line1','address_line2','city','state','state_id','city_id','pincode','is_default','billing_type'];
   const sets = []; const values = [];
   allowed.forEach((k) => { if (fields[k] !== undefined) { sets.push(`${k} = ?`); values.push(fields[k]); } });
   if (!sets.length) return Promise.resolve(null);

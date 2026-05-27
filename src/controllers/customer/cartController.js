@@ -218,6 +218,11 @@ const toNestedListedCartItem = async (item, pricing, adminSellerId) => {
       images: images.map((i) => i.file_url),
       thumbnail_url: images[0]?.file_url || item.listed_product_thumbnail || null,
     },
+    color: item.color_id ? {
+      id: item.color_id,
+      name: item.color_name,
+      hex_code: item.hex_code,
+    } : null,
     product_type: item.product_type_id ? {
       id: item.product_type_id,
       name: item.product_type_name,
@@ -495,7 +500,7 @@ exports.getListedCart = async (req, res, next) => {
 
 exports.addListedItem = async (req, res, next) => {
   try {
-    const { listed_product_id, size, quantity } = req.body;
+    const { listed_product_id, size, quantity, color_id } = req.body;
     if (!LISTED_PRODUCT_SIZES.includes(size)) {
       return error(res, 'Invalid size. Use regular, medium, or large', 400);
     }
@@ -506,12 +511,23 @@ exports.addListedItem = async (req, res, next) => {
     const product = await listedProductModel.getById(listed_product_id);
     if (!product || !product.is_active) return notFound(res, 'Listed product not found');
 
+    if (color_id) {
+      const color = await db.findOne(
+        `SELECT c.id FROM colors c
+         INNER JOIN product_type_colors ptc ON ptc.color_id = c.id
+         WHERE c.id = ? AND c.is_active = 1 AND ptc.product_type_id = ?`,
+        [color_id, product.product_type_id]
+      );
+      if (!color) return error(res, 'Selected color not found or not available for this product', 400);
+    }
+
     const result = await cartModel.addListedItem({
       user_id: req.user.id,
       listed_product_id,
       listed_product_size: size,
       product_type_id: product.product_type_id,
       quantity,
+      color_id: color_id || null,
     });
     return created(res, {
       id: result.insertId,
@@ -691,9 +707,16 @@ exports.decreaseQuantity = async (req, res, next) => {
   try {
     const item = await cartModel.getItemById(req.params.id, req.user.id);
     if (!item) return notFound(res, 'Cart item not found');
-    const nextQty = Math.max(1, Number(item.quantity || 1) - 1);
-    await cartModel.updateItem(req.params.id, { quantity: nextQty });
+    const currentQty = Number(item.quantity || 1);
+    const nextQty = currentQty - 1;
     const cartOpts = item.listed_product_id ? { listedOnly: true } : { customOnly: true };
+
+    if (nextQty <= 0) {
+      await cartModel.removeItem(req.params.id, req.user.id);
+      return success(res, await buildCartResponse(req.user.id, cartOpts), 'Item removed from cart');
+    }
+
+    await cartModel.updateItem(req.params.id, { quantity: nextQty });
     return success(res, await buildCartResponse(req.user.id, cartOpts), 'Quantity decreased');
   } catch (err) { next(err); }
 };

@@ -23,6 +23,8 @@ router.get('/letter-styles',      ctrl.getLetterStyles);
 router.get('/illumination-options', ctrl.getIlluminationOptions);
 router.get('/dimension-units',    ctrl.getDimensionUnits);
 router.get('/shipping-services',  ctrl.getShippingServices);
+router.get('/states',             ctrl.getStates);
+router.get('/cities',             ctrl.getCities);
 router.get('/listed-products',    ctrl.getListedProducts);
 
 module.exports = router;

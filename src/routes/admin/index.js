@@ -27,6 +27,8 @@ router.use('/letter-styles',    require('./letterStyles'));
 router.use('/illumination-options', require('./illuminationOptions'));
 router.use('/dimension-units',  require('./dimensionUnits'));
 router.use('/shipping-services',require('./shippingServices'));
+router.use('/states',           require('./states'));
+router.use('/cities',           require('./cities'));
 router.use('/listed-products',  require('./listedProducts'));
 router.use('/vendors',          require('./vendors'));
 router.use('/orders',           require('./orders'));
