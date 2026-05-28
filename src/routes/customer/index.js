@@ -8,5 +8,6 @@ router.use('/profile',   roleCheck('customer'), require('./profile'));
 router.use('/addresses', require('./addresses'));
 router.use('/cart',      require('./cart'));
 router.use('/orders',    require('./orders'));
+router.use('/notifications', roleCheck('customer'), require('./notifications'));
 
 module.exports = router;

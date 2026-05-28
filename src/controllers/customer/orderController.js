@@ -10,6 +10,10 @@ const { success, created, notFound, error, paginated } = require('../../utils/re
 const { getPagination, getPaginationMeta } = require('../../utils/helpers');
 const { nextSellerSerials, saveInvoiceNumber } = require('../../services/orderNumberService');
 const { enrichOrder, enrichOrders, buildOrderItemSnapshot } = require('../../services/orderResponseService');
+const {
+  notifyPaymentVerifiedOrders,
+  notifyCodOrders,
+} = require('../../services/orderNotificationService');
 const { LOLLIPOP_PRODUCT_TYPE_ID, PRODUCT_SLUGS } = require('../../utils/constants');
 
 const isLollipopOrderItem = (item) =>
@@ -51,6 +55,7 @@ const initiateBatchPaymentCore = async ({ batch, payment_method }) => {
       payment_status: 'pending',
       payment_transaction_id: null,
     })));
+    notifyCodOrders(orders.map((o) => o.id)).catch(() => {});
     return {
       payload: {
         payment_batch_id: batch.id,
@@ -171,6 +176,8 @@ const verifyBatchPaymentCore = async ({ batch, razorpay_order_id, razorpay_payme
     }
     return done;
   });
+
+  notifyPaymentVerifiedOrders(finalized.map((o) => o.order_id)).catch(() => {});
 
   return {
     payload: {

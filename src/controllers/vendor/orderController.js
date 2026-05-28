@@ -1,6 +1,7 @@
 const orderModel  = require('../../models/orderModel');
 const vendorModel = require('../../models/vendorModel');
 const { enrichOrderForPanel, enrichOrdersForPanel, getAdminSellerId } = require('../../services/orderResponseService');
+const { notifyCustomerOrderStatusChanged } = require('../../services/orderNotificationService');
 const { buildInvoicePdf } = require('../../services/invoiceService');
 const { sendMail } = require('../../services/emailService');
 const { success, notFound, paginated, forbidden } = require('../../utils/response');
@@ -44,6 +45,7 @@ exports.updateStatus = async (req, res, next) => {
       return forbidden(res, 'Vendors can only update status to: confirmed, processing, shipped');
 
     await orderModel.updateStatus(req.params.id, status);
+    notifyCustomerOrderStatusChanged(order, status).catch(() => {});
     return success(res, {}, 'Order status updated');
   } catch (err) { next(err); }
 };

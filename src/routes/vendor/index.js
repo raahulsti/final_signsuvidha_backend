@@ -7,6 +7,7 @@ router.use(auth, roleCheck('vendor', 'super_admin'));
 router.use('/profile',   require('./profile'));
 router.use('/pricing',   require('./pricing'));
 router.use('/orders',    require('./orders'));
+router.use('/notifications', require('./notifications'));
 router.use('/dashboard', require('./dashboard'));
 
 module.exports = router;

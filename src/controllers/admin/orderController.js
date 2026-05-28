@@ -1,5 +1,6 @@
 const orderModel = require('../../models/orderModel');
 const { enrichOrderForPanel, enrichOrdersForPanel, getAdminSellerId } = require('../../services/orderResponseService');
+const { notifyCustomerOrderStatusChanged } = require('../../services/orderNotificationService');
 const { success, notFound, paginated } = require('../../utils/response');
 const { getPagination, getPaginationMeta } = require('../../utils/helpers');
 const { buildInvoicePdf } = require('../../services/invoiceService');
@@ -26,8 +27,11 @@ exports.getOne = async (req, res, next) => {
 
 exports.updateStatus = async (req, res, next) => {
   try {
-    if (!await orderModel.getById(req.params.id)) return notFound(res, 'Order not found');
-    await orderModel.updateStatus(req.params.id, req.body.status);
+    const order = await orderModel.getById(req.params.id);
+    if (!order) return notFound(res, 'Order not found');
+    const { status } = req.body;
+    await orderModel.updateStatus(req.params.id, status);
+    notifyCustomerOrderStatusChanged(order, status).catch(() => {});
     return success(res, {}, 'Order status updated');
   } catch (err) { next(err); }
 };
