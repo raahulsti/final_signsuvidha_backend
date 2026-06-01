@@ -40,6 +40,8 @@ const normalizeCartRow = (row) => {
   return {
     ...row,
     text_layers: parseTextLayers(row.text_layers),
+    text_dimension: parseTextLayers(row.text_dimension),
+    logo_dimension: parseTextLayers(row.logo_dimension),
     pylon_tiles_images: parseUrlArray(row.pylon_tiles_images),
   };
 };
@@ -129,7 +131,8 @@ const addItem = ({ user_id, product_type_id, material_id, material_style_id, fra
                    add_border_id, border_is_lit, lollipop_element_id,
                    pylon_id, pylon_category_id, pylon_tiles_count, pylon_tiles_images,
                    base_id, thickness_id, element_id, color_id, font_id,
-                   illumination_option_id, text_layers, height, width, dimension_unit_id,
+                   illumination_option_id, text_layers, text_dimension, logo_dimension,
+                   height, width, dimension_unit_id,
                    uploaded_image_url, preview_image_url, quantity }) =>
   db.execute(
     `INSERT INTO cart_items
@@ -137,9 +140,9 @@ const addItem = ({ user_id, product_type_id, material_id, material_style_id, fra
         add_border_id, border_is_lit, lollipop_element_id,
         pylon_id, pylon_category_id, pylon_tiles_count, pylon_tiles_images,
         base_id, thickness_id, element_id, color_id, font_id,
-        illumination_option_id, text_layers, height, width, dimension_unit_id,
+        illumination_option_id, text_layers, text_dimension, logo_dimension, height, width, dimension_unit_id,
         uploaded_image_url, preview_image_url, quantity)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [user_id, product_type_id, material_id || null, material_style_id || null, frame_id || null, wallpaper_id || null,
      add_border_id || null, border_is_lit ? 1 : 0, lollipop_element_id || null,
      pylon_id || null, pylon_category_id || null, Math.max(0, parseInt(pylon_tiles_count, 10) || 0),
@@ -147,6 +150,8 @@ const addItem = ({ user_id, product_type_id, material_id, material_style_id, fra
      base_id || null, thickness_id || null, element_id || null,
      color_id || null, font_id || null, illumination_option_id || null,
      text_layers ? JSON.stringify(text_layers) : null,
+     text_dimension?.length ? JSON.stringify(text_dimension) : null,
+     logo_dimension?.length ? JSON.stringify(logo_dimension) : null,
      height || 0, width || 0, dimension_unit_id || null,
      uploaded_image_url || null, preview_image_url || null, quantity || 1]
   );
@@ -155,7 +160,7 @@ const updateItem = (id, fields) => {
   const allowed = ['material_id','material_style_id','frame_id','wallpaper_id','add_border_id','border_is_lit','lollipop_element_id',
                    'pylon_id','pylon_category_id','pylon_tiles_count','pylon_tiles_images',
                    'base_id','thickness_id','element_id','color_id','font_id','illumination_option_id',
-                   'text_layers','height','width','dimension_unit_id','quantity',
+                   'text_layers','text_dimension','logo_dimension','height','width','dimension_unit_id','quantity',
                    'uploaded_image_url','preview_image_url','vendor_id'];
   const sets = []; const values = [];
   allowed.forEach((k) => {
@@ -163,6 +168,7 @@ const updateItem = (id, fields) => {
       sets.push(`${k} = ?`);
       let v = fields[k];
       if (k === 'text_layers' && v) v = JSON.stringify(v);
+      if ((k === 'text_dimension' || k === 'logo_dimension')) v = v?.length ? JSON.stringify(v) : null;
       if (k === 'pylon_tiles_images') v = v?.length ? JSON.stringify(v) : null;
       if (k === 'border_is_lit') v = v ? 1 : 0;
       values.push(v);

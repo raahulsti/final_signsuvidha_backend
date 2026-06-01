@@ -31,6 +31,32 @@ const textLayersField = Joi.alternatives()
   )
   .messages({ 'any.invalid': 'text_layers must be a valid JSON array' });
 
+/** 3D Signage: each entry contributes height×width (in its own unit) to total area. */
+const dimensionEntry = Joi.object({
+  text:   Joi.string().max(500).optional().allow('', null),
+  height: Joi.number().min(0).required(),
+  width:  Joi.number().min(0).required(),
+  unit:   Joi.number().integer().positive().optional().allow(null),
+}).unknown(true);
+
+const dimensionArray = Joi.array().items(dimensionEntry).max(100);
+
+const dimensionArrayField = Joi.alternatives()
+  .try(
+    dimensionArray,
+    Joi.string().custom((value, helpers) => {
+      try {
+        const parsed = JSON.parse(value);
+        const { error, value: validated } = dimensionArray.validate(parsed, { convert: true, stripUnknown: false });
+        if (error) return helpers.error('any.invalid');
+        return validated;
+      } catch (_) {
+        return helpers.error('any.invalid');
+      }
+    }, 'dimension JSON parser')
+  )
+  .messages({ 'any.invalid': 'must be a valid JSON array of height/width/unit entries' });
+
 const urlArray = Joi.array().items(Joi.string().max(2000)).max(50);
 
 const pylonTilesImagesField = Joi.alternatives()
@@ -69,6 +95,8 @@ const addToCart = Joi.object({
   font_id:           Joi.number().integer().positive().optional().allow(null),
   illumination_option_id: Joi.number().integer().positive().optional().allow(null),
   text_layers:       textLayersField.optional(),
+  text_dimension:    dimensionArrayField.optional().allow(null),
+  logo_dimension:    dimensionArrayField.optional().allow(null),
   height:            Joi.number().min(0).optional(),
   width:             Joi.number().min(0).optional(),
   dimension_unit_id: Joi.number().integer().positive().optional().allow(null),

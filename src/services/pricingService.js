@@ -13,6 +13,33 @@ const isPylonItem = (item) =>
 
 const isListedItem = (item) => !!item.listed_product_id;
 
+const is3DSignageItem = (item) => item.product_type_slug === PRODUCT_SLUGS.SIGNAGE_3D;
+
+/** Parse a dimension array that may arrive as a JSON string (from DB) or an array. */
+const parseDimensionArray = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (_) {
+      return [];
+    }
+  }
+  return [];
+};
+
+/** Sum of height×width (each converted by its own unit) across a dimension array. */
+const sumDimensionAreaSqft = async (entries) => {
+  const list = parseDimensionArray(entries);
+  let total = 0;
+  for (const entry of list) {
+    total += await computeAreaSqft(entry.height, entry.width, entry.unit);
+  }
+  return total;
+};
+
 const calculateListedProductPrice = async (item) => {
   const listedProductModel = require('../models/listedProductModel');
   const qty = parseInt(item.quantity, 10) || 1;
@@ -267,7 +294,17 @@ const calculateItemPrice = async (item, vendorId = null) => {
     quantity = 1,
   } = item;
 
-  const areaSqft = await computeAreaSqft(height, width, dimension_unit_id);
+  const baseAreaSqft = await computeAreaSqft(height, width, dimension_unit_id);
+
+  // 3D Signage: total area = base dimension + sum(text entries) + sum(logo entries),
+  // each entry converted by its own unit. Other products are unaffected.
+  let textAreaSqft = 0;
+  let logoAreaSqft = 0;
+  if (is3DSignageItem(item)) {
+    textAreaSqft = await sumDimensionAreaSqft(item.text_dimension);
+    logoAreaSqft = await sumDimensionAreaSqft(item.logo_dimension);
+  }
+  const areaSqft = baseAreaSqft + textAreaSqft + logoAreaSqft;
 
   // Material cost (per sq ft)
   let pricePerSqft = 0;
@@ -448,6 +485,9 @@ const calculateItemPrice = async (item, vendorId = null) => {
 
   return {
     area_sqft: parseFloat(areaSqft.toFixed(4)),
+    base_area_sqft: parseFloat(baseAreaSqft.toFixed(4)),
+    text_area_sqft: parseFloat(textAreaSqft.toFixed(4)),
+    logo_area_sqft: parseFloat(logoAreaSqft.toFixed(4)),
     price_per_sqft: pricePerSqft,
     material_cost: parseFloat(materialCost.toFixed(2)),
     material_style_price_per_sqft: parseFloat(materialStylePricePerSqft.toFixed(4)),
@@ -483,7 +523,14 @@ const calculateItemPrice = async (item, vendorId = null) => {
  * Vendor comparison for a cart item
  * Returns admin + all approved vendors with their prices
  */
-const getVendorComparison = async (item) => {
+const getVendorComparison = async (rawItem) => {
+  // getItemById returns the row without a JOIN, so product_type_slug may be missing.
+  // Resolve it so product-specific pricing (e.g. 3D Signage area sum) applies here too.
+  let item = rawItem;
+  if (!item.product_type_slug && item.product_type_id) {
+    const pt = await db.findOne('SELECT slug FROM product_types WHERE id = ?', [item.product_type_id]);
+    if (pt) item = { ...item, product_type_slug: pt.slug };
+  }
   if (isListedItem(item)) {
     const adminPrice = await calculateListedProductPrice(item);
     return {

@@ -38,6 +38,8 @@ const toNestedCartItem = (item, pricing = null, adminSellerId = null) => ({
   vendor_id: item.vendor_id,
   quantity: item.quantity,
   text_layers: item.text_layers || [],
+  text_dimension: item.text_dimension || [],
+  logo_dimension: item.logo_dimension || [],
   dimensions: {
     height: item.height,
     width: item.width,
@@ -167,6 +169,9 @@ const toNestedCartItem = (item, pricing = null, adminSellerId = null) => ({
   } : null,
   pricing: pricing ? {
     area_sqft: pricing.area_sqft,
+    base_area_sqft: pricing.base_area_sqft,
+    text_area_sqft: pricing.text_area_sqft,
+    logo_area_sqft: pricing.logo_area_sqft,
     unit_price: pricing.unit_price,
     total_price: pricing.total_price,
     breakdown: {
@@ -255,9 +260,24 @@ const resolveAdminSellerId = async () => {
   return adminUser?.id || null;
 };
 
+let _cartDimUnitMapCache = null;
+const getDimUnitMap = async () => {
+  if (_cartDimUnitMapCache) return _cartDimUnitMapCache;
+  const rows = await db.execute('SELECT id, unit_name FROM dimension_units');
+  _cartDimUnitMapCache = new Map(rows.map((r) => [String(r.id), r.unit_name]));
+  return _cartDimUnitMapCache;
+};
+
+const attachCartUnitNames = (entries, unitMap) =>
+  (Array.isArray(entries) ? entries : []).map((e) => ({
+    ...e,
+    unit_name: e.unit_name || (e.unit != null ? (unitMap.get(String(e.unit)) || null) : null),
+  }));
+
 const buildCartResponse = async (userId, { customOnly = false, listedOnly = false } = {}) => {
   const items = await cartModel.getCartByUser(userId, { customOnly, listedOnly });
   const adminSellerId = await resolveAdminSellerId();
+  const unitMap = await getDimUnitMap();
   const enriched = await Promise.all(
     items.map(async (item) => {
       if (item.listed_product_id) {
@@ -265,7 +285,10 @@ const buildCartResponse = async (userId, { customOnly = false, listedOnly = fals
         return toNestedListedCartItem(item, pricing, adminSellerId);
       }
       const pricing = await calculateItemPrice(item, item.vendor_id || null);
-      return { ...toNestedCartItem(item, pricing, adminSellerId), item_type: 'custom' };
+      const nested = { ...toNestedCartItem(item, pricing, adminSellerId), item_type: 'custom' };
+      if (nested.text_dimension?.length) nested.text_dimension = attachCartUnitNames(nested.text_dimension, unitMap);
+      if (nested.logo_dimension?.length) nested.logo_dimension = attachCartUnitNames(nested.logo_dimension, unitMap);
+      return nested;
     })
   );
   return enriched;

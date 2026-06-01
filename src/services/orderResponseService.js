@@ -84,6 +84,20 @@ const parseItemSnapshot = (value) => {
   return null;
 };
 
+let _dimUnitMapCache = null;
+const getDimensionUnitMap = async () => {
+  if (_dimUnitMapCache) return _dimUnitMapCache;
+  const rows = await db.execute('SELECT id, unit_name FROM dimension_units');
+  _dimUnitMapCache = new Map(rows.map((r) => [String(r.id), r.unit_name]));
+  return _dimUnitMapCache;
+};
+
+const attachUnitNames = (entries, unitMap) =>
+  (Array.isArray(entries) ? entries : []).map((e) => ({
+    ...e,
+    unit_name: e.unit_name || (e.unit != null ? (unitMap.get(String(e.unit)) || null) : null),
+  }));
+
 const normalizeSnapshotSourceRow = (item) => {
   if (!item) return item;
   return {
@@ -131,6 +145,8 @@ const buildCustomOrderItemDisplay = (item) => ({
   item_type: 'custom',
   quantity: item.quantity,
   text_layers: parseTextLayers(item.text_layers),
+  text_dimension: parseTextLayers(item.text_dimension),
+  logo_dimension: parseTextLayers(item.logo_dimension),
   dimensions: {
     height: item.height,
     width: item.width,
@@ -239,6 +255,10 @@ const buildCustomOrderItemDisplay = (item) => ({
     description: nullableStr(item.illumination_description),
   } : null,
   pricing: {
+    area_sqft: item.area_sqft != null ? parseFloat(item.area_sqft) : null,
+    base_area_sqft: item.base_area_sqft != null ? parseFloat(item.base_area_sqft) : null,
+    text_area_sqft: item.text_area_sqft != null ? parseFloat(item.text_area_sqft) : null,
+    logo_area_sqft: item.logo_area_sqft != null ? parseFloat(item.logo_area_sqft) : null,
     unit_price: parseFloat(item.unit_price || 0),
     total_price: parseFloat(item.total_price || 0),
     breakdown: {
@@ -402,6 +422,11 @@ const enrichOrder = async (order, itemsByOrderId, adminSellerId, options = {}) =
 
   const rawItems = itemsByOrderId?.get(order.id) || await orderModel.getOrderItemsEnriched(order.id);
   const items = rawItems.map(toNestedOrderItem);
+  const unitMap = await getDimensionUnitMap();
+  items.forEach((it) => {
+    if (it.text_dimension?.length) it.text_dimension = attachUnitNames(it.text_dimension, unitMap);
+    if (it.logo_dimension?.length) it.logo_dimension = attachUnitNames(it.logo_dimension, unitMap);
+  });
   const previewImages = items
     .map((i) => i.images.preview_image_url || i.images.uploaded_image_url)
     .filter(Boolean);
