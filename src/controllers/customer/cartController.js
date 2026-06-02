@@ -160,6 +160,7 @@ const toNestedCartItem = (item, pricing = null, adminSellerId = null) => ({
     admin_price_per_sqft: item.illumination_admin_price_per_sqft,
     unit: 'square feet',
     description: nullableDescription(item.illumination_description),
+    preview_image_url: nullableDescription(item.illumination_preview_image_url),
   } : null,
   seller_type: item.vendor_id ? 'vendor' : 'admin',
   seller_id: item.vendor_id || adminSellerId,

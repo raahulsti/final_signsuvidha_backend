@@ -11,7 +11,10 @@ exports.getStats = async (req, res, next) => {
       db.findOne('SELECT COUNT(*) AS total FROM orders WHERE vendor_id = ?', [vendor.id]),
       db.findOne('SELECT COALESCE(SUM(total_amount),0) AS total FROM orders WHERE vendor_id = ? AND payment_status = "paid"', [vendor.id]),
       db.findOne('SELECT COUNT(*) AS total FROM orders WHERE vendor_id = ? AND status = "pending"', [vendor.id]),
-      db.execute('SELECT id, order_number, total_amount, status, created_at FROM orders WHERE vendor_id = ? ORDER BY created_at DESC LIMIT 5', [vendor.id]),
+      db.execute(`SELECT o.id, o.order_number, o.total_amount, o.status, o.created_at,
+                         u.name AS customer_name
+                  FROM orders o LEFT JOIN users u ON u.id = o.customer_user_id
+                  WHERE o.vendor_id = ? ORDER BY o.created_at DESC LIMIT 5`, [vendor.id]),
     ]);
 
     return success(res, {

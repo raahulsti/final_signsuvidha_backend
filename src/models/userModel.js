@@ -78,7 +78,53 @@ const findCustomerByPhone = (phone) =>
 const setActive = (userId, isActive) =>
   db.execute('UPDATE users SET is_active = ?, updated_at = NOW() WHERE id = ?', [isActive ? 1 : 0, userId]);
 
+/** Admin: paginated list of customers with order aggregates. */
+const getCustomers = ({ search, offset, limit }) => {
+  const conds = ["r.name = 'customer'"];
+  const vals = [];
+  if (search) {
+    conds.push('(u.name LIKE ? OR u.email LIKE ? OR u.phone LIKE ?)');
+    const s = `%${search}%`;
+    vals.push(s, s, s);
+  }
+  const where = `WHERE ${conds.join(' AND ')}`;
+  const sql = `
+    SELECT u.id, u.name, u.email, u.phone, u.gender, u.is_active, u.created_at,
+           COUNT(DISTINCT o.id) AS order_count,
+           COALESCE(SUM(CASE WHEN o.payment_status = 'paid' THEN o.payable_amount ELSE 0 END), 0) AS total_spent,
+           MAX(o.created_at) AS last_order_at
+    FROM users u
+    INNER JOIN user_roles ur ON ur.user_id = u.id
+    INNER JOIN roles r ON r.id = ur.role_id
+    LEFT JOIN orders o ON o.customer_user_id = u.id
+    ${where}
+    GROUP BY u.id
+    ORDER BY last_order_at DESC, u.created_at DESC
+    LIMIT ? OFFSET ?`;
+  const countSql = `
+    SELECT COUNT(DISTINCT u.id) AS total
+    FROM users u
+    INNER JOIN user_roles ur ON ur.user_id = u.id
+    INNER JOIN roles r ON r.id = ur.role_id
+    ${where}`;
+  return db.paginate(sql, countSql, [...vals, limit, offset], vals);
+};
+
+/** Single customer profile (must have the customer role). */
+const getCustomerById = (id) =>
+  db.findOne(
+    `SELECT u.id, u.name, u.email, u.phone, u.gender, u.date_of_birth, u.profile_image_url,
+            u.is_active, u.created_at
+     FROM users u
+     INNER JOIN user_roles ur ON ur.user_id = u.id
+     INNER JOIN roles r ON r.id = ur.role_id
+     WHERE u.id = ? AND r.name = 'customer'
+     LIMIT 1`,
+    [id]
+  );
+
 module.exports = {
   findByEmail, findById, create, comparePassword, getRoles, addRole,
   updateCustomerProfile, findByPhone, findCustomerByPhone, setActive,
+  getCustomers, getCustomerById,
 };

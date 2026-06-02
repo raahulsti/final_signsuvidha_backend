@@ -10,6 +10,10 @@ const requestLogger = require('../middleware/requestLogger');
 
 const app = express();
 
+// Disable ETag so API GETs are never answered with 304 Not Modified
+// (a 304 can yield an empty body in fetch/RTK Query and break data loading).
+app.set('etag', false);
+
 // ── Security ──────────────────────────────────────
 app.use(helmet());
 app.use(cors({
@@ -29,6 +33,11 @@ if (process.env.NODE_ENV === 'development') app.use(morgan('dev'));
 app.use(requestLogger);
 
 // ── API Routes ────────────────────────────────────
+// Prevent browser caching of API responses (avoids stale 304 with empty body).
+app.use('/api', (req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+});
 app.use('/api', routes);
 
 // ── Health Check ──────────────────────────────────

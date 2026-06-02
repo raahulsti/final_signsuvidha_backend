@@ -89,6 +89,7 @@ const getCartByUser = (userId, { customOnly = false, listedOnly = false } = {}) 
             io.name   AS illumination_option_name, io.category AS illumination_category,
             io.admin_price_per_sqft AS illumination_admin_price_per_sqft,
             io.description AS illumination_description,
+            io.preview_image_url AS illumination_preview_image_url,
             du.unit_name,                   du.conversion_to_sqft,
             v.business_name AS vendor_name,
             lp.name AS listed_product_name, lp.description AS listed_product_description,

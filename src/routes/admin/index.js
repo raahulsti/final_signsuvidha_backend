@@ -31,6 +31,7 @@ router.use('/states',           require('./states'));
 router.use('/cities',           require('./cities'));
 router.use('/listed-products',  require('./listedProducts'));
 router.use('/vendors',          require('./vendors'));
+router.use('/customers',        require('./customers'));
 router.use('/orders',           require('./orders'));
 router.use('/cms-pages',        require('./cmsPages'));
 

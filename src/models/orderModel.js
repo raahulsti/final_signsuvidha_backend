@@ -241,8 +241,78 @@ const getByVendor = ({ vendorId, status, offset, limit }) => {
     [...vals, limit, offset], vals);
 };
 
+/** Vendor: distinct customers who ordered from this vendor, with aggregates. */
+const getVendorCustomers = ({ vendorId, search, offset, limit }) => {
+  const conds = ['o.vendor_id = ?'];
+  const vals = [vendorId];
+  if (search) {
+    conds.push('(u.name LIKE ? OR u.email LIKE ? OR u.phone LIKE ?)');
+    const s = `%${search}%`;
+    vals.push(s, s, s);
+  }
+  const where = `WHERE ${conds.join(' AND ')}`;
+  const sql = `
+    SELECT u.id, u.name, u.email, u.phone, u.gender, u.is_active, u.created_at,
+           COUNT(DISTINCT o.id) AS order_count,
+           COALESCE(SUM(CASE WHEN o.payment_status = 'paid' THEN o.payable_amount ELSE 0 END), 0) AS total_spent,
+           MAX(o.created_at) AS last_order_at
+    FROM orders o
+    INNER JOIN users u ON u.id = o.customer_user_id
+    ${where}
+    GROUP BY u.id
+    ORDER BY last_order_at DESC, u.id DESC
+    LIMIT ? OFFSET ?`;
+  const countSql = `
+    SELECT COUNT(DISTINCT o.customer_user_id) AS total
+    FROM orders o
+    INNER JOIN users u ON u.id = o.customer_user_id
+    ${where}`;
+  return db.paginate(sql, countSql, [...vals, limit, offset], vals);
+};
+
+/** Vendor: orders for a specific customer placed with this vendor. */
+const getByCustomerAndVendor = ({ userId, vendorId, status, offset, limit }) => {
+  const conds = ['o.customer_user_id = ?', 'o.vendor_id = ?'];
+  const vals = [userId, vendorId];
+  if (status) { conds.push('o.status = ?'); vals.push(status); }
+  const sql = `
+    SELECT o.*, inv.invoice_number,
+           u.name AS customer_name, u.email AS customer_email, u.phone AS customer_phone,
+           v.business_name AS vendor_name, ss.name AS shipping_service_name
+    FROM orders o
+    LEFT JOIN order_invoice_numbers inv ON inv.order_id = o.id
+    LEFT JOIN users u ON u.id = o.customer_user_id
+    LEFT JOIN vendors v ON v.id = o.vendor_id
+    LEFT JOIN shipping_services ss ON ss.id = o.shipping_service_id
+    WHERE ${conds.join(' AND ')}
+    ORDER BY o.created_at DESC LIMIT ? OFFSET ?`;
+  return db.paginate(sql, `SELECT COUNT(*) AS total FROM orders o WHERE ${conds.join(' AND ')}`,
+    [...vals, limit, offset], vals);
+};
+
+/** Aggregate stats for a customer (admin = all orders). */
+const getCustomerStats = (userId) =>
+  db.findOne(
+    `SELECT COUNT(*) AS order_count,
+            COALESCE(SUM(CASE WHEN payment_status = 'paid' THEN payable_amount ELSE 0 END), 0) AS total_spent,
+            MAX(created_at) AS last_order_at
+     FROM orders WHERE customer_user_id = ?`,
+    [userId]
+  );
+
+/** Aggregate stats for a customer scoped to one vendor. */
+const getCustomerVendorStats = (userId, vendorId) =>
+  db.findOne(
+    `SELECT COUNT(*) AS order_count,
+            COALESCE(SUM(CASE WHEN payment_status = 'paid' THEN payable_amount ELSE 0 END), 0) AS total_spent,
+            MAX(created_at) AS last_order_at
+     FROM orders WHERE customer_user_id = ? AND vendor_id = ?`,
+    [userId, vendorId]
+  );
+
 module.exports = {
   create, createItem, getByCustomer, getById, getOrderItems, getOrderItemsEnriched, getOrderItemsEnrichedByOrderIds,
   updateStatus, updatePayment, updateOrderNumber, updatePaymentBatchId,
   getAll, getByVendor,
+  getVendorCustomers, getByCustomerAndVendor, getCustomerStats, getCustomerVendorStats,
 };
