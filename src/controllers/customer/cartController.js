@@ -11,6 +11,7 @@ const addBorderModel = require('../../models/addBorderModel');
 const lollipopElementModel = require('../../models/lollipopElementModel');
 const pylonModel = require('../../models/pylonModel');
 const listedProductModel = require('../../models/listedProductModel');
+const taxConfigModel = require('../../models/taxConfigModel');
 const { LISTED_PRODUCT_SIZES } = require('../../utils/constants');
 const { getVendorComparison, calculateItemPrice } = require('../../services/pricingService');
 const { success, created, notFound, error } = require('../../utils/response');
@@ -32,7 +33,17 @@ const nullableDescription = (v) => {
   return s === '' ? null : s;
 };
 
-const toNestedCartItem = (item, pricing = null, adminSellerId = null) => ({
+const withGst = (totalPrice, gstPercent) => {
+  if (totalPrice == null) return { gst_percent: gstPercent, gst_amount: null, total_amount: null };
+  const gstAmount = parseFloat(((Number(totalPrice) * gstPercent) / 100).toFixed(2));
+  return {
+    gst_percent: gstPercent,
+    gst_amount: gstAmount,
+    total_amount: parseFloat((Number(totalPrice) + gstAmount).toFixed(2)),
+  };
+};
+
+const toNestedCartItem = (item, pricing = null, adminSellerId = null, gstPercent = 0) => ({
   id: item.id,
   user_id: item.user_id,
   vendor_id: item.vendor_id,
@@ -175,6 +186,7 @@ const toNestedCartItem = (item, pricing = null, adminSellerId = null) => ({
     logo_area_sqft: pricing.logo_area_sqft,
     unit_price: pricing.unit_price,
     total_price: pricing.total_price,
+    ...withGst(pricing.total_price, gstPercent),
     breakdown: {
       material_price_per_sqft: pricing.price_per_sqft,
       material_cost: pricing.material_cost,
@@ -207,7 +219,7 @@ const toNestedCartItem = (item, pricing = null, adminSellerId = null) => ({
   updated_at: item.updated_at,
 });
 
-const toNestedListedCartItem = async (item, pricing, adminSellerId) => {
+const toNestedListedCartItem = async (item, pricing, adminSellerId, gstPercent = 0) => {
   const images = await listedProductModel.getImages(item.listed_product_id);
   return {
     item_type: 'listed',
@@ -240,6 +252,7 @@ const toNestedListedCartItem = async (item, pricing, adminSellerId) => {
     pricing: {
       unit_price: pricing.unit_price,
       total_price: pricing.total_price,
+      ...withGst(pricing.total_price, gstPercent),
       breakdown: {},
     },
     created_at: item.created_at,
@@ -279,14 +292,16 @@ const buildCartResponse = async (userId, { customOnly = false, listedOnly = fals
   const items = await cartModel.getCartByUser(userId, { customOnly, listedOnly });
   const adminSellerId = await resolveAdminSellerId();
   const unitMap = await getDimUnitMap();
+  const activeTax = await taxConfigModel.getActive();
+  const gstPercent = parseFloat(activeTax?.gst_percent || 0);
   const enriched = await Promise.all(
     items.map(async (item) => {
       if (item.listed_product_id) {
         const pricing = await calculateItemPrice(item, null);
-        return toNestedListedCartItem(item, pricing, adminSellerId);
+        return toNestedListedCartItem(item, pricing, adminSellerId, gstPercent);
       }
       const pricing = await calculateItemPrice(item, item.vendor_id || null);
-      const nested = { ...toNestedCartItem(item, pricing, adminSellerId), item_type: 'custom' };
+      const nested = { ...toNestedCartItem(item, pricing, adminSellerId, gstPercent), item_type: 'custom' };
       if (nested.text_dimension?.length) nested.text_dimension = attachCartUnitNames(nested.text_dimension, unitMap);
       if (nested.logo_dimension?.length) nested.logo_dimension = attachCartUnitNames(nested.logo_dimension, unitMap);
       return nested;
